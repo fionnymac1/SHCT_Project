@@ -97,6 +97,23 @@ MIN_PRESSURE_RATIO = 2.0     # compressor envelope; binds at low ambient
 # The full sweep over BORES x REFRIGERANTS is Task 3.
 STANDIN_BORE_MM = 40.0
 STANDIN_REFRIGERANT = "Propane"
+ROOM_VOLUME_M3 = ROOM_LENGTH_M * ROOM_WIDTH_M * ROOM_HEIGHT_M
+
+FLOW_RATE_ACH = 9.0  # Air Changes per Hour
+SAFETY_MARGIN = 1.15  # 15% extra capacity for safety
+
+TARGET_TEMP_C = 15.0
+INITIAL_TEMP_C = 15.0
+RELATIVE_HUMIDITY = 0.60
+
+TEMP_UPPER_THRESHOLD_C = 16.0
+TEMP_LOWER_THRESHOLD_C = 14.0
+
+TIME_STEP_MIN = 5.0
+MIN_AC_RUN_TIME_MIN = 5.0
+MIN_AC_OFF_TIME_MIN = 10.0
+
+MIN_PRESSURE_RATIO = 2.0
 COMPRESSOR_BORES_MM = [30.0, 40.0, 50.0]
 COMPRESSOR_N_CYL = 4         # [FLAG] provided fn is written for 2 cylinders;
                              # cylinder scaling unresolved -> see RICM60S sheet.
