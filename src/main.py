@@ -1,5 +1,6 @@
 import config
 from simulation import *
+from visualization import *
 
 def load_data(filepath):
     """
@@ -34,25 +35,14 @@ def load_data(filepath):
         return []
 
 def main():
-    print("--- Starting Server Room Cooling Simulation ---")
-    
-    # 1. Load Data
-    print("Loading data files...")
-    server_heat_data = load_data(config.FILE_SERVER_HEAT)
-    
-    # Check if data loaded successfully before proceeding
-    if not server_heat_data:
-        print("Failed to load server heat data. Exiting.")
-        return
 
-    # 2. Execute Task 1: Determine System Limits
-    print("\n--- Executing Task 1 ---")
-    max_flow_limit, peak_cooling_demand = determine_system_limits(server_heat_data)
-    
-    # 3. Output Results
-    print(f"Maximum Volumetric Flow Limit: {max_flow_limit:.3f} m^3/s")
-    print(f"Peak Cooling Demand (Required Power): {peak_cooling_demand:.2f} kW")
+    # Example execution to generate maps for your combinations
+    refrigerants = config.REFRIGERANTS  
+    bores = config.COMPRESSOR_BORES_MM
 
+    # Generate one map to test
+    test_map = generate_performance_map("Propane", 50)
+    print(test_map)
 
 if __name__ == "__main__":
     main()
