@@ -6,8 +6,7 @@ sampling over 24 h and treat the day as periodic, then linearly interpolate
 onto the 5-min simulation grid. Run from the repository root.
 """
 import numpy as np
-
-from src import config
+import config
 
 
 def _read_series(path):

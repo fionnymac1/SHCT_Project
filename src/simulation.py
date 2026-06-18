@@ -16,9 +16,10 @@ AC capacity Q_AC and COP_inner come from the precomputed (T_room,T_amb) map
 import numpy as np
 from scipy.integrate import odeint
 import pandas as pd
-from src import config, data_io, room, control, cycle, flow_limits
-from src import Fluid_CP_moist_air as FCP
+import config, data_io, room, control, cycle, flow_limits
+import Fluid_CP_moist_air as FCP
 from compressor_model import recip_comp_corr_SP
+
 
 # [ASSUMPTION][FLAG] fan electrical model (not given): specific fan power.
 FAN_SPECIFIC_POWER_KW_PER_M3S = 1.0

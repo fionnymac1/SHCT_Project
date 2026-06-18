@@ -23,8 +23,8 @@ is validated in tests/validate_psychro (max |dT| ~ 0.1-0.3 K, |dphi| ~ 1 %).
 Units: degC, kJ/kg_a, kg, kg/s, s, kW. p = 1 bar.
 """
 import numpy as np
+import config
 
-from src import config
 
 M_AIR = config.M_AIR_KG
 P_KPA = config.P_BAR * 100.0

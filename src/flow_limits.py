@@ -12,8 +12,7 @@ Flow-cap basis (Lecture #11, slides 33-35):
 All powers in kW, flows in m3/s, temperatures in degC/K.
 """
 import numpy as np
-
-from src import config
+import config
 
 
 # --------------------------------------------------------------- Task 1.1

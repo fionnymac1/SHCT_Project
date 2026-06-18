@@ -28,10 +28,8 @@ Compressor mass flow + isentropic efficiency from the provided module.
 """
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
+import config, Fluid_CP as FCP, compressor_model as comp
 
-from src import config
-from src import Fluid_CP as FCP
-from src import compressor_model as comp
 
 EH = "CBar"
 

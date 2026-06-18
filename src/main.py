@@ -6,8 +6,8 @@ capacity/COP map (Hint 1) -> simulate the four representative days under the
 on/off control state machine (Task 1.3) -> report and plot.
 """
 import os
+import config, data_io, flow_limits, cycle, simulation, plotting
 
-from src import config, data_io, flow_limits, cycle, simulation, plotting
 
 
 def main():

@@ -6,8 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
-
-from src import config
+import config
 
 _MODE_NUM = {"OFF": 0, "VENT": 1, "AC": 2}
 
