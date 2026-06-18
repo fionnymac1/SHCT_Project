@@ -124,3 +124,18 @@ def lookup(cmap, T_room_C, T_amb_C):
     """Interpolate (Q_AC_kW, COP_inner) at one (T_room, T_amb)."""
     pt = np.array([[T_room_C, T_amb_C]])
     return float(cmap["q_interp"](pt)[0]), float(cmap["c_interp"](pt)[0])
+
+
+def map_to_dataframe(cmap):
+    """Flatten a build_map() grid into the long-form table (T_amb, T_room,
+    Q_AC_kW, COP_inner) that visualization.py's contour plots expect."""
+    import pandas as pd
+    T_room_grid, T_amb_grid = cmap["T_room_grid"], cmap["T_amb_grid"]
+    rows = [
+        {"T_room": tr, "T_amb": ta,
+         "Q_AC_kW": cmap["Q_AC"][i, j], "COP_inner": cmap["COP_inner"][i, j],
+         "clamped": bool(cmap["clamped"][i, j])}
+        for i, tr in enumerate(T_room_grid)
+        for j, ta in enumerate(T_amb_grid)
+    ]
+    return pd.DataFrame(rows)

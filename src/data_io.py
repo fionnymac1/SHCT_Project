@@ -1,11 +1,14 @@
 """
-Input data loading and resampling (Task 1).
+Input data loading and resampling (Task 1), plus save/load of the precomputed
+AC performance maps (Task 2/Hint 1). Run from the repository root.
 
 Each season file holds 48 samples of a representative day. We assume 30-min
 sampling over 24 h and treat the day as periodic, then linearly interpolate
-onto the 5-min simulation grid. Run from the repository root.
+onto the 5-min simulation grid.
 """
+import os
 import numpy as np
+import pandas as pd
 import config
 
 
@@ -41,3 +44,30 @@ def resample_day(series, dt_min=None):
 def diurnal_check(series):
     """Sanity helper: index of daily min/max (expect one trough, one peak)."""
     return int(np.argmin(series)), int(np.argmax(series))
+
+
+def _map_path(refrigerant, bore_mm, out_dir=None):
+    out_dir = config.PERFORMANCE_MAP_DIR if out_dir is None else out_dir
+    return os.path.join(out_dir, "ac_map_{}_{:.0f}mm.csv".format(refrigerant, bore_mm))
+
+
+def save_performance_map(df, refrigerant, bore_mm, out_dir=None):
+    """Write a flattened (cycle.map_to_dataframe) AC performance map to CSV."""
+    out_dir = config.PERFORMANCE_MAP_DIR if out_dir is None else out_dir
+    os.makedirs(out_dir, exist_ok=True)
+    path = _map_path(refrigerant, bore_mm, out_dir)
+    df.to_csv(path, index=False)
+    return path
+
+
+def load_performance_map(refrigerant, bore_mm, out_dir=None):
+    """Read back one performance map written by save_performance_map."""
+    return pd.read_csv(_map_path(refrigerant, bore_mm, out_dir))
+
+
+def load_all_performance_maps(refrigerants=None, bores=None, out_dir=None):
+    """Return {(refrigerant, bore_mm): df} for every combination on disk."""
+    refrigerants = config.REFRIGERANTS if refrigerants is None else refrigerants
+    bores = config.COMPRESSOR_BORES_MM if bores is None else bores
+    return {(r, b): load_performance_map(r, b, out_dir)
+            for r in refrigerants for b in bores}

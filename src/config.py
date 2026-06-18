@@ -126,3 +126,6 @@ FILE_SERVER_HEAT = "data/server_heating_power.txt"
 DATA_POINTS_PER_DAY = 48
 DATA_RESOLUTION_MIN = 30.0
 DAY_MIN = 24.0 * 60.0
+
+# --------------------------------------------------- Task 2 map output (I/O)
+PERFORMANCE_MAP_DIR = "results"   # precomputed (T_room,T_amb) AC maps, per (refrigerant, bore)
