@@ -85,6 +85,7 @@ DELTA_T_SUPPLY_GUIDE_K = 10.0
 #   LOWERS T_ev and therefore COP. This magnitude is exactly the
 #   COP-vs-(dehumidification + comfort) trade-off the Task-2 inner optimisation
 #   must resolve; here it is fixed as a defensible stand-in.
+# TODO: corroborate with ex.3 to understand if we have to optrimize it
 DT_APPROACH_EVAP_K = 12.0    # -> T_ev = T_room - 12  (3 degC at 15 degC room)
 DT_APPROACH_COND_K = 5.0     # [ASSUMPTION]
 DT_APPROACH_AIR_K = 3.0      # T_AC = T_ev + 3   (answer to setup question 3)

@@ -5,11 +5,17 @@ State per kg dry air:  z = [h* (kJ/kg_a), m_w (kg)] ; X = m_w / M_AIR.
     Energy:  M_AIR * dh*/dt = Q_server(t) - Q_cool                    [kW]
     Water:           dm_w/dt = (X_sink - X) * m_dot                   [kg/s]
 
-Modes (mutually exclusive, shared fan):
+Modes (mutually exclusive, shared fan). Both actuators are strictly ON/OFF and
+run at FULL capacity while on (no modulation); the cooling rate is recomputed
+at the current room enthalpy each ODE step so it self-limits physically:
   OFF : no exchange (only the server heat).
   AC  : coil at T_AC, condensation two-case X_sink = min(X, Xsat(T_AC));
-        m_dot = Q_cool / (h*_room - h*_sink).
-  VENT: ambient air (T_amb, phi 0.60), X_sink = X_amb; same m_dot form.
+        Q_cool = Q_AC (full compressor capacity), recirculation
+        m_dot = Q_AC / (h*_room - h*_sink) floats to deliver it and -> 0 once
+        the room reaches the coil enthalpy.
+  VENT: ambient air (T_amb, phi 0.60) at the fixed design flow rhoV;
+        Q_cool = rhoV * (h*_room - h*_amb) -> 0 as the room approaches ambient,
+        so free cooling cannot overshoot past T_amb within a step.
 
 Psychrometrics
 --------------
@@ -74,16 +80,30 @@ def enthalpy_at(T_C, X):
 
 
 def rhs(z, t, mode, p):
-    """Pure-arithmetic ODE RHS; h_sink, X_sink precomputed once per step."""
+    """ODE RHS for true on/off. The instantaneous cooling rate is evaluated at
+    the current room enthalpy h_ (not frozen at the step start), so it
+    self-limits as the room approaches the heat sink."""
     h_, mw = z
     X = mw / M_AIR
     Q_server = p["Q_server"]
-    if mode in ("AC", "VENT"):
-        Q_cool = p["Q_cool"]
-        dh = (Q_server - Q_cool) / M_AIR
+    if mode == "AC":
         denom = h_ - p["h_sink"]
-        m_dot = Q_cool / denom if denom > 1e-6 else 0.0
+        if denom > 1e-6:
+            Q_cool = p["Q_AC"]                 # full compressor capacity
+            m_dot = Q_cool / denom             # recirculation flow floats
+        else:                                  # room at/below the coil enthalpy
+            Q_cool = m_dot = 0.0
+        dh = (Q_server - Q_cool) / M_AIR
         dmw = (p["X_sink"] - X) * m_dot
+    elif mode == "VENT":
+        denom = h_ - p["h_amb"]
+        if denom > 1e-6:
+            m_dot = p["rhoV"]                  # fixed design air flow
+            Q_cool = m_dot * denom             # -> 0 as room -> ambient
+        else:
+            Q_cool = m_dot = 0.0
+        dh = (Q_server - Q_cool) / M_AIR
+        dmw = (p["X_amb"] - X) * m_dot
     else:
         dh = Q_server / M_AIR
         dmw = 0.0

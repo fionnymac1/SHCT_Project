@@ -6,9 +6,12 @@ Task 1.3 control - temperature-only on/off state machine.
   * free-cooling-first: when cooling is needed, use VENT if ambient can carry
     the load within the acoustic flow cap, else AC.
   * modes {OFF, VENT, AC} are mutually exclusive (one shared fan).
-  * minimum run = 1 step (5 min); minimum standstill = 2 steps (10 min):
-    a cooling mode must persist >= min-run before changing; OFF must persist
-    >= min-standstill before cooling may restart (anti short-cycling).
+  * minimum run = 1 step (5 min); minimum standstill = 2 steps (10 min) apply
+    to the COMPRESSOR ONLY. The task gives these as limits "of air conditioning
+    units" - they model compressor pressure-equalisation (standstill) and oil
+    return (run). A free-cooling blower has neither, so VENT and OFF (fan-only
+    states) switch freely each step; the standstill clock counts time since the
+    compressor last ran, including any intervening VENT.
 """
 import math
 from common import config
@@ -28,20 +31,34 @@ def vent_feasible(T_room, T_amb, Q_demand):
         flow_limits.v_max_acoustic_m3s()
 
 
-def decide(state, steps_in_state, T_room, T_amb, Q_demand):
-    """Return the next mode in {OFF, VENT, AC}."""
-    # 1. minimum-run lock on an active cooling mode
-    if state in ("AC", "VENT") and steps_in_state < MIN_RUN_STEPS:
-        return state
-    # 2. minimum-standstill lock on OFF
-    if state == "OFF" and steps_in_state < MIN_STANDSTILL_STEPS:
-        return state
-    # 3. hysteresis
-    if T_room >= config.T_ON_C:
-        return "VENT" if vent_feasible(T_room, T_amb, Q_demand) else "AC"
-    if T_room <= config.T_OFF_C:
-        return "OFF"
-    # 4. deadband: hold, but drop VENT if ambient is no longer cold enough
-    if state == "VENT" and not vent_feasible(T_room, T_amb, Q_demand):
+def decide(state, comp_run_steps, comp_idle_steps, T_room, T_amb, Q_demand):
+    """Next mode in {OFF, VENT, AC}. comp_run_steps = steps the compressor has
+    run continuously; comp_idle_steps = steps since it last ran (counts OFF and
+    VENT alike). Compressor min-run/standstill gate only AC transitions; the fan
+    switches freely."""
+    want_cool = T_room >= config.T_ON_C
+    want_off = T_room <= config.T_OFF_C
+    vf = vent_feasible(T_room, T_amb, Q_demand)
+
+    if state == "AC":
+        # compressor must run >= min-run before it may stop
+        if comp_run_steps < MIN_RUN_STEPS:
+            return "AC"
+        if want_off:
+            return "OFF"
+        if vf:
+            return "VENT"          # free cooling now available -> drop compressor
         return "AC"
+
+    # fan-only states (OFF / VENT): no cycling limit on the blower
+    if want_cool:
+        if vf:
+            return "VENT"          # free-cooling-first
+        # compressor needed: only if standstill (pressure equalisation) is met,
+        # else hold and let the room keep rising until it clears
+        return "AC" if comp_idle_steps >= MIN_STANDSTILL_STEPS else state
+    if want_off:
+        return "OFF"
+    if state == "VENT" and not vf:
+        return "OFF"               # ambient no longer cold enough
     return state
