@@ -29,21 +29,25 @@ Compressor mass flow + isentropic efficiency from the provided module.
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 from common import config, Fluid_CP as FCP, compressor_model as comp
-
+from scipy.optimize import minimize
 
 EH = "CBar"
 
 
 def cycle_point(T_room_C, T_amb_C, bore_mm=None, refrigerant=None,
-                dt_sh=None, dt_sc=None):
-    """One steady operating point. Returns a dict of cycle results."""
+                dt_sh=None, dt_sc=None, T_ev_C=None, T_co_C=None):
+    """One steady operating point. Returns a dict of cycle results.
+       Accepts optional T_ev_C and T_co_C overrides for optimization."""
     bore_mm = config.STANDIN_BORE_MM if bore_mm is None else bore_mm
     refrigerant = config.STANDIN_REFRIGERANT if refrigerant is None else refrigerant
     dt_sh = config.DELTA_T_SUPERHEAT_K if dt_sh is None else dt_sh
     dt_sc = config.DELTA_T_SUBCOOL_K if dt_sc is None else dt_sc
 
-    T_ev = T_room_C - config.DT_APPROACH_EVAP_K
-    T_co = T_amb_C + config.DT_APPROACH_COND_K
+    # ---------------------------------------------------------
+    # RESOLVE TEMPERATURES (Override vs. Config Fallback)
+    # ---------------------------------------------------------
+    T_ev = T_ev_C if T_ev_C is not None else (T_room_C - config.DT_APPROACH_EVAP_K)
+    T_co = T_co_C if T_co_C is not None else (T_amb_C + config.DT_APPROACH_COND_K)
 
     sat_ev = FCP.state(["T", "x"], [T_ev, 1.0], refrigerant, Eh=EH)
     sat_co = FCP.state(["T", "x"], [T_co, 1.0], refrigerant, Eh=EH)
@@ -88,8 +92,85 @@ def cycle_point(T_room_C, T_amb_C, bore_mm=None, refrigerant=None,
         "q_evap": q_evap, "w_comp": w_comp,
         "Q_AC_kW": Q_AC, "W_kW": W, "COP_inner": cop,
         "T_AC": T_ev + config.DT_APPROACH_AIR_K,
+        "dt_sc_actual": dt_sc
     }
 
+def optimize_cop(T_room_C, T_amb_C, bore_mm=None, refrigerant=None):
+    """
+    Floats both Condensation Temperature and Subcooling to maximize COP_inner.
+    Locks Evaporation Temperature and Superheat as technical constraints.
+    """
+    bore_mm = config.STANDIN_BORE_MM if bore_mm is None else bore_mm
+    refrigerant = config.STANDIN_REFRIGERANT if refrigerant is None else refrigerant
+    
+    # 1. Lock the required technical constraints
+    fixed_T_ev = T_room_C - config.DT_APPROACH_EVAP_K
+    fixed_dt_sh = config.DELTA_T_SUPERHEAT_K
+
+    # 2. Objective Function to MINIMIZE (Negative COP)
+    def objective(x):
+        float_T_co = x[0]
+        float_dt_sc = x[1]
+        
+        try:
+            # Call the updated cycle_point with the floating variables
+            res = cycle_point(
+                T_room_C=T_room_C, 
+                T_amb_C=T_amb_C, 
+                bore_mm=bore_mm, 
+                refrigerant=refrigerant,
+                dt_sh=fixed_dt_sh,    # Locked
+                dt_sc=float_dt_sc,    # FLOATING
+                T_ev_C=fixed_T_ev,    # Locked
+                T_co_C=float_T_co     # FLOATING
+            )
+            
+            if res["COP_inner"] <= 0:
+                return 1e6
+            return -res["COP_inner"] 
+        except Exception:
+            # Catch fluid boundary errors from the CoolProp wrapper
+            return 1e6 
+            
+    # 3. Initial Guesses (Start at the config defaults)
+    x0 = [T_amb_C + config.DT_APPROACH_COND_K, config.DELTA_T_SUBCOOL_K]
+    
+    # 4. Bounds
+    # T_co must be warmer than ambient to reject heat. Capped arbitrarily at 80C.
+    # dt_sc can range from 0K to a realistic physical limit (e.g., 20K).
+    bounds = [
+        (T_amb_C + 0.1, 80.0), 
+        (0.0, 20.0)            
+    ]
+    
+    # 5. Constraints
+    # The subcooled liquid temperature (T_co - dt_sc) CANNOT be colder than 
+    # the ambient air (T_amb) cooling it.
+    # Mathematically: (T_co - dt_sc) >= T_amb  -->  (T_co - dt_sc) - T_amb >= 0
+    def subcool_limit_constraint(x):
+        float_T_co = x[0]
+        float_dt_sc = x[1]
+        return (float_T_co - float_dt_sc) - T_amb_C
+        
+    cons = ({'type': 'ineq', 'fun': subcool_limit_constraint})
+
+    # 6. Run the Solver
+    sol = minimize(objective, x0, method='SLSQP', bounds=bounds, constraints=cons)
+    
+    # 7. Return Results
+    if sol.success:
+        optimal_T_co = sol.x[0]
+        optimal_dt_sc = sol.x[1]
+        
+        # Recalculate and return the full dictionary at the mathematically proven peak
+        return cycle_point(
+            T_room_C, T_amb_C, bore_mm, refrigerant, 
+            dt_sh=fixed_dt_sh, dt_sc=optimal_dt_sc, 
+            T_ev_C=fixed_T_ev, T_co_C=optimal_T_co
+        )
+    else:
+        # Fallback to the standard unoptimized config if the solver fails to converge
+        return cycle_point(T_room_C, T_amb_C, bore_mm, refrigerant)
 
 def build_map(T_room_grid=None, T_amb_grid=None, bore_mm=None, refrigerant=None):
     """Precompute Q_AC, COP_inner over a (T_room, T_amb) grid, each wrapped in a
