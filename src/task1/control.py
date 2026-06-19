@@ -11,7 +11,8 @@ Task 1.3 control - temperature-only on/off state machine.
     >= min-standstill before cooling may restart (anti short-cycling).
 """
 import math
-import config, flow_limits
+from common import config
+from task1 import flow_limits
 
 MIN_RUN_STEPS = max(1, math.ceil(config.MIN_RUN_MIN / config.TIME_STEP_MIN))
 MIN_STANDSTILL_STEPS = max(1, math.ceil(

@@ -4,10 +4,14 @@ ETH SHCT SS2026 group project. Code repo = `SHCT_Project` (git). Course
 conventions live in the project instructions + memory. This brief = state
 **after Task 1 was coded and verified.**
 
-## DONE — Task 1 fully coded + verified
-End-to-end run (from repo root): `python -m src.main` → builds the AC
+## DONE — Task 1 fully coded + verified; Task 2 sweep + viz scaffolded
+End-to-end run (from repo root, PowerShell):
+`$env:PYTHONPATH = "src"; python src/task1/main.py`
+(Bash: `PYTHONPATH=src python src/task1/main.py`) → builds the AC
 capacity/COP map, simulates the 4 representative season-days under on/off
 control, writes `figures/`. Reproduces from scratch (~30 s, the map dominates).
+Setting `PYTHONPATH` is required because `src/` was split into packages
+(`common/`, `task1/`, `task2/`) — see WHERE IT IS below.
 
 - **1.1** required cooling = **5.0 kW** (peak server load over the 4 days).
 - **1.2** V̇_max = Beaufort-5 (10.7 m/s) × 0.20 m² opening = **2.14 m³/s**;
@@ -19,18 +23,34 @@ control, writes `figures/`. Reproduces from scratch (~30 s, the map dominates).
   control). Winter = pure free cooling (fan only ~7.9 kWh) but **dries to
   21 % RH**; summer = AC all day (~18.8 kWh), RH 50–60 %; spring/fall mixed.
 
-## WHERE IT IS (`SHCT_Project/src`)
-- `config.py` — all constants, tagged `[ASSUMPTION]`/`[FLAG]`, + your TODOs
-- `data_io.py` — load + resample 48-pt (30-min) → 5-min, periodic day
-- `flow_limits.py` — Task 1.1 + 1.2
-- `cycle.py` — subcritical VCC stand-in (40 mm / Propane); COP_inner + Q_AC on
-  a (T_room,T_amb) grid (Hint 1, interpolated); min-pressure-ratio clamp
-- `room.py` — Exercise-11 moist-air ODE; **analytic psychrometrics** in the
-  loop (fast, validated vs `state_moist`, robust below the triple point)
-- `control.py` — on/off state machine (Task 1.3). `controller.py` = DEPRECATED
-- `simulation.py` — driver + part-load COP_res (Hint 2)
-- `plotting.py`, `main.py`
-- `NOTES_Task1.md` — assumptions + open flags; `figures/` — 5 PNGs
+## WHERE IT IS (`SHCT_Project/src`, split common/task1/task2)
+- `common/config.py` — all constants, tagged `[ASSUMPTION]`/`[FLAG]`, + TODOs
+- `common/data_io.py` — load + resample 48-pt (30-min) → 5-min, periodic day;
+  also owns save/load of the Task-2 performance-map CSVs (`results/`)
+- `common/plotting.py` — all figures: Task 1 (room/mode) + Task 2 (COP/Q_AC
+  contour grids). `visualization.py` was merged into this, no longer exists.
+- `common/Fluid_CP.py`, `common/Fluid_CP_moist_air.py`, `common/compressor_model.py`
+  — course-provided wrappers
+- `task1/flow_limits.py` — Task 1.1 + 1.2
+- `task1/room.py` — Exercise-11 moist-air ODE; **analytic psychrometrics** in
+  the loop (fast, validated vs `state_moist`, robust below the triple point)
+- `task1/control.py` — on/off state machine (Task 1.3)
+- `task1/simulation.py` — driver + part-load COP_res (Hint 2)
+- `task1/main.py` — Task 1 entry point
+- `task2/cycle.py` — subcritical VCC cycle, generalised over (bore,
+  refrigerant); COP_inner + Q_AC on a (T_room,T_amb) grid (Hint 1,
+  interpolated); min-pressure-ratio clamp. `task1/simulation.py` borrows this
+  with a stand-in bore/refrigerant (`config.STANDIN_*`) to test the Task-1
+  control strategy ahead of Task 2/3 proper.
+- `task2/main_task2.py` — sweeps all 3 refrigerants × 3 bores, bounds the
+  ambient grid from the real data, saves each map via `common.data_io`
+- `task2/main_task2_viz.py` — loads the saved maps via `common.data_io`,
+  renders COP_inner/Q_AC contour grids via `common.plotting`
+- Cross-package imports are explicit/absolute, e.g. `from common import
+  config`, `from task1 import room`, `from task2 import cycle` — NOT flat
+  `import config`. Every package needs `src/` on `PYTHONPATH` to resolve.
+- `NOTES_Task1.md` — assumptions + open flags; `figures/` — Task 1 + Task 2
+  PNGs; `results/` — Task 2 performance-map CSVs
 - Env OK: CoolProp/scipy/matplotlib; refrigerants `"Propane"`,`"R1234yf"`,
   `"DimethylEther"`; `requirements.txt` re-encoded UTF-8.
 
@@ -59,7 +79,11 @@ control, writes `figures/`. Reproduces from scratch (~30 s, the map dominates).
   source for typical AC min run/standstill times.
 
 ## NEXT
-Task 2 — cycle COP optimisation written in standard DOF/objective/constraints
-form (free var ≈ superheat/subcooling/evap-approach). Task 3 — sweep 3 bores ×
-3 refrigerants, select on energy / cycles / run-times / room T + humidity.
+Task 2 scaffolding exists (`task2/main_task2.py` sweeps 3 bores × 3
+refrigerants and saves maps; `task2/main_task2_viz.py` plots COP_inner/Q_AC
+contours) but the actual **cycle COP optimisation is not yet done** — it still
+needs to be written in standard DOF/objective/constraints form (free var ≈
+superheat/subcooling/evap-approach); `task2/cycle.py` currently uses fixed
+superheat/subcooling from config, not an optimum. Task 3 — use the saved
+sweep to select on energy / cycles / run-times / room T + humidity.
 **Resolve #1 and #2 first — both change the sizing/selection.**

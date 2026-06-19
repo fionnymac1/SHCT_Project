@@ -9,7 +9,7 @@ onto the 5-min simulation grid.
 import os
 import numpy as np
 import pandas as pd
-import config
+from common import config
 
 
 def _read_series(path):

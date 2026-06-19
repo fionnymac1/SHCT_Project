@@ -28,7 +28,7 @@ Compressor mass flow + isentropic efficiency from the provided module.
 """
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
-import config, Fluid_CP as FCP, compressor_model as comp
+from common import config, Fluid_CP as FCP, compressor_model as comp
 
 
 EH = "CBar"
@@ -128,7 +128,7 @@ def lookup(cmap, T_room_C, T_amb_C):
 
 def map_to_dataframe(cmap):
     """Flatten a build_map() grid into the long-form table (T_amb, T_room,
-    Q_AC_kW, COP_inner) that visualization.py's contour plots expect."""
+    Q_AC_kW, COP_inner) that plotting.py's contour plots expect."""
     import pandas as pd
     T_room_grid, T_amb_grid = cmap["T_room_grid"], cmap["T_amb_grid"]
     rows = [

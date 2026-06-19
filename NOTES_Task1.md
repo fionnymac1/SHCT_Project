@@ -1,12 +1,14 @@
 # Task 1 - server-room cooling: model, results, assumptions, open flags
 
-Code in `src/`, run from repo root: `python -m src.main` (builds the AC map,
-simulates the four days, writes `figures/`). Pipeline modules:
-`config` (all constants + tagged assumptions) -> `data_io` (load + 30->5 min
-resample) -> `flow_limits` (1.1, 1.2) -> `cycle` (VCC stand-in + (T_room,T_amb)
-capacity/COP map, Hint 1) -> `room` (Ex-11 moist-air ODE) -> `control` (on/off
-state machine, 1.3) -> `simulation` (driver + part-load COP_res, Hint 2) ->
-`plotting`.
+Code in `src/`, split into `common/` (shared), `task1/`, `task2/`. Run from
+repo root (PowerShell): `$env:PYTHONPATH = "src"; python src/task1/main.py`
+(Bash: `PYTHONPATH=src python src/task1/main.py`) - builds the AC map,
+simulates the four days, writes `figures/`. Pipeline modules:
+`common.config` (all constants + tagged assumptions) -> `common.data_io`
+(load + 30->5 min resample) -> `task1.flow_limits` (1.1, 1.2) -> `task2.cycle`
+(VCC stand-in + (T_room,T_amb) capacity/COP map, Hint 1) -> `task1.room`
+(Ex-11 moist-air ODE) -> `task1.control` (on/off state machine, 1.3) ->
+`task1.simulation` (driver + part-load COP_res, Hint 2) -> `common.plotting`.
 
 ## Results (40 mm / Propane stand-in)
 - **1.1 required cooling power = 5.00 kW** (peak server load over the 4 days).
