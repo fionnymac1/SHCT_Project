@@ -101,6 +101,7 @@ ROOM_VOLUME_M3 = ROOM_LENGTH_M * ROOM_WIDTH_M * ROOM_HEIGHT_M
 
 
 # ----------------------------------------------------------- ASHRAE limits for ventilation
+#TODO: check how to map to Beaufort number
 FLOW_RATE_ACH = 9.0  # Air Changes per Hour
 SAFETY_MARGIN = 1.15  # 15% extra capacity for safety
 
