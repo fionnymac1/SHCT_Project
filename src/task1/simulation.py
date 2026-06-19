@@ -22,7 +22,12 @@ from task2 import cycle
 
 # [ASSUMPTION][FLAG] fan electrical model (not given): specific fan power.
 FAN_SPECIFIC_POWER_KW_PER_M3S = 1.0
-VENT_FLOW_MAX_M3S = flow_limits.v_max_acoustic_m3s()
+# ON/OFF ventilator runs at the single DESIGN flow (config), NOT the acoustic
+# cap. Full sizing + ASHRAE TC9.9 rationale: see config.VENT_FLOW_DESIGN_M3S.
+# Guard that the chosen design flow respects the Beaufort-5 acoustic cap.
+VENT_FLOW_DESIGN_M3S = config.VENT_FLOW_DESIGN_M3S
+assert VENT_FLOW_DESIGN_M3S <= flow_limits.v_max_acoustic_m3s() + 1e-9, \
+    "ventilation design flow exceeds the Beaufort-5 acoustic cap"
 
 
 def cop_res(cop_inner, Q_demand, Q_AC):
@@ -87,9 +92,9 @@ def simulate_season(season, cmap):
             # ON/OFF: fan at its single design speed -> full acoustic flow.
             X_amb = room.X_from_Tphi(T_amb, config.VENT_AMBIENT_PHI)
             h_amb = room.hstar(T_amb, X_amb)
-            rhoV = config.AIR_DENSITY_KG_M3 * VENT_FLOW_MAX_M3S
+            rhoV = config.AIR_DENSITY_KG_M3 * VENT_FLOW_DESIGN_M3S
             p = {"Q_server": Q_srv, "rhoV": rhoV, "h_amb": h_amb, "X_amb": X_amb}
-            WEL[i] = FAN_SPECIFIC_POWER_KW_PER_M3S * VENT_FLOW_MAX_M3S
+            WEL[i] = FAN_SPECIFIC_POWER_KW_PER_M3S * VENT_FLOW_DESIGN_M3S
             QCOOL[i] = max(0.0, rhoV * (h_room - h_amb))    # start-of-step trace
         else:
             p = {"Q_server": Q_srv}

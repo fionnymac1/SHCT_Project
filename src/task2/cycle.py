@@ -95,7 +95,7 @@ def build_map(T_room_grid=None, T_amb_grid=None, bore_mm=None, refrigerant=None)
     """Precompute Q_AC, COP_inner over a (T_room, T_amb) grid, each wrapped in a
     RegularGridInterpolator (Hint 1)."""
     if T_room_grid is None:
-        T_room_grid = np.arange(13.0, 20.01, 1.0)
+        T_room_grid = np.arange(13.0, 36.01, 1.0)   # widened: 18-27 band pushes T_room up; don't extrapolate the AC map
     if T_amb_grid is None:
         T_amb_grid = np.arange(0.0, 40.01, 2.0)
 

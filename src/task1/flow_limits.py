@@ -28,8 +28,18 @@ def required_cooling_power_kw(server_by_season):
 
 # --------------------------------------------------------------- Task 1.2
 def v_max_acoustic_m3s():
-    """Acoustic/comfort flow cap = Beaufort-5 face velocity x supply area."""
+    """Acoustic/comfort flow cap = Beaufort-5 face velocity x supply area.
+    UPPER BOUND only (the task's "acoustic and flow velocity constraint"),
+    not the operating flow."""
     return config.V_MAX_BEAUFORT5_M_S * config.A_SUPPLY_M2
+
+
+def vent_flow_design_m3s():
+    """ON/OFF ventilator operating flow (single design speed), set in config.
+    This is what the fan actually delivers when VENT is on. It is sized (see
+    config.VENT_FLOW_DESIGN_M3S) so one timestep of free cooling cannot overshoot
+    the lower band, and must stay <= v_max_acoustic_m3s()."""
+    return config.VENT_FLOW_DESIGN_M3S
 
 
 def v_min_m3s(q_kw, dt_k):
@@ -61,6 +71,12 @@ def summarise(server_by_season):
           "{:.2f} kW".format(q_peak))
     print("Task 1.2  V_max (Beaufort 5 x {:.2f} m2)            = "
           "{:.2f} m3/s".format(config.A_SUPPLY_M2, vmax))
+    vdes = vent_flow_design_m3s()
+    tau = config.M_AIR_KG / (config.AIR_DENSITY_KG_M3 * vdes)
+    print("          V_design (on/off ventilator)             = "
+          "{:.3f} m3/s ({:.0f}% of cap)".format(vdes, 100.0 * vdes / vmax))
+    print("          room tau = M/(rho*V_design)              = "
+          "{:.0f} s = {:.1f} steps".format(tau, tau / (config.TIME_STEP_MIN * 60.0)))
     for dt in (5.0, 10.0, 13.0):
         print("          V_min at dT = {:>4.1f} K, peak load        = "
               "{:.2f} m3/s".format(dt, float(v_min_m3s(q_peak, dt))))
