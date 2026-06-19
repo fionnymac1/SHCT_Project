@@ -15,7 +15,9 @@ AC capacity Q_AC and COP_inner come from the precomputed (T_room,T_amb) map
 """
 import numpy as np
 from scipy.integrate import odeint
-import config, data_io, room, control, cycle, flow_limits
+from common import config, data_io
+from task1 import room, control, flow_limits
+from task2 import cycle
 
 
 # [ASSUMPTION][FLAG] fan electrical model (not given): specific fan power.

@@ -1,12 +1,17 @@
 """
-Task 1 entry point. Run from the repository root:  python -m src.main
+Task 1 entry point. Run from the repository root:
+    python src/main.py
+(no PYTHONPATH needed - this script lives in src/, which Python adds to
+the import path automatically, making common/task1/task2 resolvable)
 
 Pipeline: load data -> Task 1.1/1.2 headline numbers -> build the AC
 capacity/COP map (Hint 1) -> simulate the four representative days under the
 on/off control state machine (Task 1.3) -> report and plot.
 """
 import os
-import config, data_io, flow_limits, cycle, simulation, plotting
+from common import config, data_io, plotting
+from task1 import flow_limits, simulation
+from task2 import cycle
 
 
 

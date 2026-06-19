@@ -1,6 +1,6 @@
 import numpy as np
 
-import Fluid_CP as FCP
+from common import Fluid_CP as FCP
 
 def recip_comp_corr_SP(param, refrigerant, transcrit=False):
 

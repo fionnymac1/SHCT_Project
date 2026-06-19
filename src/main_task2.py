@@ -1,5 +1,7 @@
 """
-Task 2 entry point. Run from the repository root:  python -m src.main_task2
+Task 2 entry point. Run from the repository root:
+    python src/main_task2.py
+(no PYTHONPATH needed - see main.py)
 
 Pipeline: load the real ambient-temperature data (via data_io, the same
 loader Task 1 uses) to bound the sink-temperature grid -> build the AC
@@ -7,7 +9,8 @@ cycle's (T_room, T_amb) capacity/COP map (cycle.build_map) for every
 compressor bore x refrigerant combination -> save each map via data_io.
 """
 import numpy as np
-import config, data_io, cycle
+from common import config, data_io
+from task2 import cycle
 
 
 def main():
