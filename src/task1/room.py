@@ -1,78 +1,101 @@
 """
 Room moist-air model - Exercise 11 extended (Task 1).
 
-State per kg dry air:  z = [h* (kJ/kg_a), m_w (kg)] ; X = m_w / M_AIR.
+State per kg dry air:  z = [h* (kJ/kg_a), m_w (kg)] ;  X = m_w / M_AIR.
     Energy:  M_AIR * dh*/dt = Q_server(t) - Q_cool                    [kW]
     Water:           dm_w/dt = (X_sink - X) * m_dot                   [kg/s]
 
+This is the Exercise-11 room model - same state vector, same energy/water
+balances, same condensation two-case - extended for the server room with:
+time-varying server load Q_server (replaces the fixed envelope Q), an OFF mode,
+and a VENT mode that exchanges enthalpy + water with ambient.
+
 Modes (mutually exclusive, shared fan). Both actuators are strictly ON/OFF and
-run at FULL capacity while on (no modulation); the cooling rate is recomputed
-at the current room enthalpy each ODE step so it self-limits physically:
+run at FULL capacity while on; the cooling rate is recomputed at the current
+room enthalpy each ODE step so it self-limits physically:
   OFF : no exchange (only the server heat).
   AC  : coil at T_AC, condensation two-case X_sink = min(X, Xsat(T_AC));
-        Q_cool = Q_AC (full compressor capacity), recirculation
-        m_dot = Q_AC / (h*_room - h*_sink) floats to deliver it and -> 0 once
-        the room reaches the coil enthalpy.
-  VENT: ambient air (T_amb, phi 0.60) at the fixed design flow rhoV;
-        Q_cool = rhoV * (h*_room - h*_amb) -> 0 as the room approaches ambient,
-        so free cooling cannot overshoot past T_amb within a step.
+        Q_cool = Q_AC (full compressor capacity), recirculation m_dot floats.
+  VENT: ambient air (T_amb, phi 0.60) at the fixed design flow rhoV.
 
 Psychrometrics
 --------------
-The course module Fluid_CP_moist_air.state_moist is exact but slow (CoolProp +
-a brentq inversion per call) and throws once the room dries below water's
-triple point. The room balance is integrated many times, so here we use the
-standard ideal-gas moist-air relations
-    h* = cp_a T + X (hfg0 + cp_v T)          [kJ/kg dry air]
-with a Magnus psat. These are the SAME physics state_moist encodes; agreement
-is validated in tests/validate_psychro (max |dT| ~ 0.1-0.3 K, |dphi| ~ 1 %).
+All moist-air states come from the course module
+Fluid_CP_moist_air.state_moist (CoolProp, p = 1 bar), exactly as Exercise 11:
+forward via (T,phi)/(T,X), inversion via (h*,X) (solution cell 16).
+
+ONE deviation from Ex11's call pattern, forced by a verified numerical trap:
+state_moist's (T,X) branch is unreliable AT SATURATION - it reconstructs the
+water partial pressure on the saturation line and CoolProp resolves the wrong
+phase, returning a wrong h* (e.g. 5.90 instead of ~20.8 kJ/kg at 6 degC) or
+raising. The AC coil outlet is saturated whenever it dehumidifies, so a
+saturated state (X >= X_sat) is evaluated through the robust (T,phi=1) entry
+instead, which is exact at every temperature. Ex11 never hit this because its
+coil sat at 12 degC, where the (T,X) branch happens to resolve correctly;
+this room's coil runs colder (T_AC ~ T_room - 9).
+
 Units: degC, kJ/kg_a, kg, kg/s, s, kW. p = 1 bar.
 """
-import numpy as np
 from common import config
+from common import Fluid_CP_moist_air as Fmoist
 
 
-M_AIR = config.M_AIR_KG
-P_KPA = config.P_BAR * 100.0
-CP_A, CP_V, HFG0 = 1.006, 1.86, 2501.0          # kJ/kg(.K), 0 degC reference
+M_AIR = config.M_AIR_KG          # kg dry air; module global so sensitivity.py
+                                 # can override it via `room.M_AIR = ...`.
 
 
-def psat_kPa(T_C):
-    """Saturation pressure of water (Magnus), kPa."""
-    return 0.61094 * np.exp(17.625 * T_C / (T_C + 243.04))
-
-
-def X_from_Tphi(T_C, phi):
-    pw = phi * psat_kPa(T_C)
-    return 0.622 * pw / (P_KPA - pw)
+def state_Tphi(T_C, phi):
+    """(X, h*) of a moist-air stream at (T, phi) from ONE state_moist call.
+    Used for the ambient air in VENT (phi < 1 there, so the (T,phi) entry is
+    robust).  Replaces a separate X-then-h* pair on the same point, halving the
+    state_moist calls per VENT step."""
+    s = Fmoist.state_moist(["T", "phi"], [T_C, phi])
+    return float(s["X"]), float(s["h*"])
 
 
 def Xsat(T_C):
-    return X_from_Tphi(T_C, 1.0)
+    """Saturated water content X_sat at T  (phi = 1)."""
+    return float(Fmoist.state_moist(["T", "phi"], [T_C, 1.0])["X"])
 
 
 def hstar(T_C, X):
-    return CP_A * T_C + X * (HFG0 + CP_V * T_C)
-
-
-def T_from_hX(h_, X):
-    return (h_ - HFG0 * X) / (CP_A + CP_V * X)
-
-
-def phi_from_TX(T_C, X):
-    pw = X * P_KPA / (0.622 + X)
-    return pw / psat_kPa(T_C)
+    """h* [kJ/kg_a] at (T, X) via state_moist.  A saturated X (X >= X_sat, e.g.
+    the dehumidifying coil outlet) is routed through the robust (T,phi=1) entry;
+    state_moist's (T,X) branch returns a wrong h* or raises at saturation
+    (verified for T in ~4-10 degC).  See module docstring."""
+    sat = Fmoist.state_moist(["T", "phi"], [T_C, 1.0])     # X_sat and h*_sat
+    if X >= float(sat["X"]) - 1e-9:
+        return float(sat["h*"])                            # saturated / clamped
+    return float(Fmoist.state_moist(["T", "X"], [T_C, X])["h*"])
 
 
 def initial_state():
-    X0 = X_from_Tphi(config.T_INIT_C, config.PHI_INIT)
-    return [hstar(config.T_INIT_C, X0), X0 * M_AIR]
+    """[h*, m_w] at the initial room condition (T_INIT_C, PHI_INIT)."""
+    x0 = Fmoist.state_moist(["T", "phi"], [config.T_INIT_C, config.PHI_INIT])
+    return [float(x0["h*"]), float(x0["X"]) * M_AIR]
 
 
 def invert(h_, mw):
+    """Recover (T, phi, X) from the state (h*, m_w).
+
+    Exercise 11 (cell 16) uses state_moist(["h*","X"]); that built-in inversion
+    queries liquid water at the dew point, so it is only valid for a dew point
+    above CoolProp's 0.01 degC triple point.  The AC dries this room to
+    ~11-26 % RH (dew point < 0 degC) in every season, where that call CRASHES.
+    Instead, T is found by solving the module's OWN forward h*(T,X) = h_ (Newton,
+    seeded with the closed-form guess), using only the robust unsaturated (T,X)
+    evaluation.  This is an exact inverse of the forward (no reference bias);
+    phi is then read off the module."""
     X = mw / M_AIR
-    T = T_from_hX(h_, X)
-    return T, phi_from_TX(T, X), X
+    T = (h_ - 2501.0 * X) / (1.006 + 1.86 * X)         # closed-form seed only
+    for _ in range(6):                                  # Newton on module forward
+        dT = (h_ - float(Fmoist.state_moist(["T", "X"], [T, X])["h*"])) \
+             / (1.006 + 1.86 * X)
+        T += dT
+        if abs(dT) < 1e-4:
+            break
+    phi = float(Fmoist.state_moist(["T", "X"], [T, X])["phi"])
+    return T, phi, X
 
 
 def enthalpy_at(T_C, X):
@@ -93,8 +116,8 @@ def rhs(z, t, mode, p):
             m_dot = Q_cool / denom             # recirculation flow floats
         else:                                  # room at/below the coil enthalpy
             Q_cool = m_dot = 0.0
-        dh = (Q_server - Q_cool) / M_AIR
-        dmw = (p["X_sink"] - X) * m_dot
+        dhdt = (Q_server - Q_cool) / M_AIR
+        dmwdt = (p["X_sink"] - X) * m_dot
     elif mode == "VENT":
         denom = h_ - p["h_amb"]
         if denom > 1e-6:
@@ -102,9 +125,9 @@ def rhs(z, t, mode, p):
             Q_cool = m_dot * denom             # -> 0 as room -> ambient
         else:
             Q_cool = m_dot = 0.0
-        dh = (Q_server - Q_cool) / M_AIR
-        dmw = (p["X_amb"] - X) * m_dot
+        dhdt = (Q_server - Q_cool) / M_AIR
+        dmwdt = (p["X_amb"] - X) * m_dot
     else:
-        dh = Q_server / M_AIR
-        dmw = 0.0
-    return [dh, dmw]
+        dhdt = Q_server / M_AIR
+        dmwdt = 0.0
+    return [dhdt, dmwdt]

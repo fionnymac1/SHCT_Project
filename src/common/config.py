@@ -27,7 +27,7 @@ ROOM_HEIGHT_M = 3.0
 ROOM_VOLUME_M3 = ROOM_LENGTH_M * ROOM_WIDTH_M * ROOM_HEIGHT_M          # 180 m3
 
 # Constant dry-air mass in the room (quasi-incompressible balance, p = 1 bar).
-# rho_dry ~ 1.197 kg/m3 at 15 degC / 60 % RH  ->  m_air ~ 216 kg  (brief).
+# rho_dry ~ 1.19 kg/m3 at 15 degC / 60 % RH  ->  m_air ~ 216 kg  (brief).
 AIR_DENSITY_KG_M3 = 1.19
 M_AIR_KG = AIR_DENSITY_KG_M3 * ROOM_VOLUME_M3                          # ~216 kg
 CP_AIR_KJ_KGK = 1.006        # dry-air cp, for the sensible V_min estimate only
@@ -48,7 +48,7 @@ T_BAND_HIGH_C = 27.0         # [ASSUMPTION] ASHRAE recommended upper (was 18)
 # Humidity is MONITORED, not controlled (no (de)humidifier actuator). The
 # binding risk is the LOWER bound: AC condensation dries the room.
 #TODO: Humidity monitored, not controlled. Analyze in the results
-PHI_ALLOW_LOW = 0.14         # ASHRAE A1 allowable lower
+PHI_ALLOW_LOW = 0.08         # ASHRAE A1 allowable lower
 PHI_ALLOW_HIGH = 0.80        # ASHRAE A1 allowable upper (start at 60 % is legal)
 
 # --------------------------------------------- control (1.3) state machine
@@ -106,7 +106,7 @@ DELTA_T_SUPPLY_GUIDE_K = 10.0
 # defines the 18-27 degC recommended inlet envelope adopted for the band. (This
 # replaces the air-changes-per-hour rule removed below, which is an IAQ fresh-air
 # metric, not a heat-removal sizing basis.)
-VENT_FLOW_DESIGN_M3S = 0.15      # [ASSUMPTION] on/off ventilator design flow
+VENT_FLOW_DESIGN_M3S = 0.30     # [ASSUMPTION] on/off ventilator design flow
 
 # ------------------------------------------------- AC cycle (Task-1 stand-in)
 # Subcritical VCC. Constant approach temperatures (also off-design):

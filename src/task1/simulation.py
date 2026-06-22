@@ -90,8 +90,7 @@ def simulate_season(season, cmap):
             QAC[i], COPR[i] = Q_AC, cr
         elif state == "VENT":
             # ON/OFF: fan at its single design speed -> full acoustic flow.
-            X_amb = room.X_from_Tphi(T_amb, config.VENT_AMBIENT_PHI)
-            h_amb = room.hstar(T_amb, X_amb)
+            X_amb, h_amb = room.state_Tphi(T_amb, config.VENT_AMBIENT_PHI)
             rhoV = config.AIR_DENSITY_KG_M3 * VENT_FLOW_DESIGN_M3S
             p = {"Q_server": Q_srv, "rhoV": rhoV, "h_amb": h_amb, "X_amb": X_amb}
             WEL[i] = FAN_SPECIFIC_POWER_KW_PER_M3S * VENT_FLOW_DESIGN_M3S

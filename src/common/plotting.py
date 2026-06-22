@@ -31,7 +31,7 @@ def plot_season(r, path):
     ax[0].axhline(config.T_OFF_C, color="0.5", ls=":", lw=0.9,
                   label="ON %g / OFF %g" % (config.T_ON_C, config.T_OFF_C))
     ax[0].set_ylabel("temperature [C]")
-    ax[0].set_title("Server room - %s day  (40 mm / %s stand-in)"
+    ax[0].set_title("Server room - %s day  (30 mm / %s stand-in)"
                     % (r["season"], config.STANDIN_REFRIGERANT))
     _tlo = min(float(np.min(r["T"])), config.T_BAND_LOW_C)
     _thi = max(float(np.max(r["T"])), config.T_BAND_HIGH_C)
