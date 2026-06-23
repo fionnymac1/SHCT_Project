@@ -131,6 +131,13 @@ DELTA_T_SUBCOOL_K = 2.0      # note: IGNORED by the compressor fn; affects
                              # refrigerating effect / COP only, not m_dot or eta
 MIN_PRESSURE_RATIO = 2.0     # compressor envelope; binds at low ambient
 
+# Pinch-point floors for cycle.optimize_cop: the minimum allowed approach
+# temperature on each heat exchanger (T_room - T_ev and T_co - T_amb), i.e.
+# how close the refrigerant may sit to the air stream before heat-exchanger
+# area would need to go to infinity. [ASSUMPTION] 5 K each side.
+PINCH_EVAP_K = 5.0           # floor on T_room - T_ev
+PINCH_COND_K = 5.0           # floor on T_co - T_amb
+
 # Stand-in (bore, refrigerant) for the Task-1 demonstration run.
 # The full sweep over BORES x REFRIGERANTS is Task 3.
 STANDIN_BORE_MM = 30.0       # AC-side of lever #2 (Task-3 selection): smallest
