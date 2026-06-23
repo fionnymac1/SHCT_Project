@@ -17,7 +17,11 @@ _MAP_LABELS = {"COP_inner": "$COP_{inner}$  [-]",
                "P_elec_kW": "$P_{elec}$  [kW]"}
 
 
-def plot_season(r, path):
+def plot_season(r, path, label=None):
+    """label: design description for the title, e.g. 'Propane, 40 mm'.
+    Defaults to the Task-1 single-bore stand-in for backward compatibility."""
+    if label is None:
+        label = "%g mm / %s stand-in" % (config.STANDIN_BORE_MM, config.STANDIN_REFRIGERANT)
     th = r["t"] / 60.0
     fig, ax = plt.subplots(3, 1, figsize=(9, 8.5), sharex=True)
 
@@ -31,8 +35,7 @@ def plot_season(r, path):
     ax[0].axhline(config.T_OFF_C, color="0.5", ls=":", lw=0.9,
                   label="ON %g / OFF %g" % (config.T_ON_C, config.T_OFF_C))
     ax[0].set_ylabel("temperature [C]")
-    ax[0].set_title("Server room - %s day  (30 mm / %s stand-in)"
-                    % (r["season"], config.STANDIN_REFRIGERANT))
+    ax[0].set_title("Server room - %s day  (%s)" % (r["season"], label))
     _tlo = min(float(np.min(r["T"])), config.T_BAND_LOW_C)
     _thi = max(float(np.max(r["T"])), config.T_BAND_HIGH_C)
     _pad = 0.05 * (_thi - _tlo) + 0.5
@@ -149,3 +152,34 @@ def visualize_all_maps(maps, value="COP_inner", levels=12, save=False):
     if save:
         fig.savefig(f"perfmap_grid_{value}.png", dpi=150, bbox_inches="tight")
     return fig
+
+
+# --------------------------------------------------------------- Task 3 sweep
+def plot_design_comparison(df_compare, path, best=None):
+    """Bar charts of the Task-3 selection criteria across all (refrigerant,
+    bore) combinations: room-condition compliance, total electrical energy,
+    and AC compressor start count. `best` = (refrigerant, bore_mm) to
+    highlight; df_compare has one row per combo (see task3.sweep)."""
+    df = df_compare.sort_values(["refrigerant", "bore_mm"])
+    labels = [f"{r}\n{b:.0f} mm" for r, b in zip(df["refrigerant"], df["bore_mm"])]
+    is_best = [(r, b) == best for r, b in zip(df["refrigerant"], df["bore_mm"])]
+    colors = ["tab:orange" if b else "tab:blue" for b in is_best]
+    x = np.arange(len(df))
+
+    fig, ax = plt.subplots(3, 1, figsize=(max(7, 0.9 * len(df)), 8), sharex=True)
+
+    ax[0].bar(x, 100 * df["frac_in_band"], color=colors)
+    ax[0].axhline(100, color="0.6", ls=":", lw=0.9)
+    ax[0].set_ylabel("time in band [%]")
+    ax[0].set_title("Task 3 design comparison (orange = selected)")
+
+    ax[1].bar(x, df["E_total_kWh"], color=colors)
+    ax[1].set_ylabel("total electrical\nenergy [kWh / 4 days]")
+
+    ax[2].bar(x, df["ac_starts_total"], color=colors)
+    ax[2].set_ylabel("AC compressor\nstarts [4 days]")
+    ax[2].set_xticks(x); ax[2].set_xticklabels(labels, fontsize=8)
+
+    fig.tight_layout()
+    fig.savefig(path, dpi=110)
+    plt.close(fig)

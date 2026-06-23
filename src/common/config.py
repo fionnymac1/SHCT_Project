@@ -124,10 +124,10 @@ VENT_FLOW_DESIGN_M3S = 0.30     # [ASSUMPTION] on/off ventilator design flow
 #   must resolve; here it is fixed as a defensible stand-in.
 # TODO: corroborate with ex.3 to understand if we have to optimize it
 DT_APPROACH_EVAP_K = 12.0    # -> T_ev = T_room - 12  (3 degC at 15 degC room)
-DT_APPROACH_COND_K = 5.0     # [ASSUMPTION]
+DT_APPROACH_COND_K = 12.0     # [ASSUMPTION]
 DT_APPROACH_AIR_K = 3.0      # T_AC = T_ev + 3   (answer to setup question 3)
 DELTA_T_SUPERHEAT_K = 5.0    # [ASSUMPTION] realistic suction superheat
-DELTA_T_SUBCOOL_K = 0.0      # note: IGNORED by the compressor fn; affects
+DELTA_T_SUBCOOL_K = 2.0      # note: IGNORED by the compressor fn; affects
                              # refrigerating effect / COP only, not m_dot or eta
 MIN_PRESSURE_RATIO = 2.0     # compressor envelope; binds at low ambient
 
