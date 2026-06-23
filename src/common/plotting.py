@@ -23,15 +23,21 @@ def plot_season(r, path):
 
     # (1) room temperature + acceptable band + hysteresis setpoints
     ax[0].axhspan(config.T_BAND_LOW_C, config.T_BAND_HIGH_C,
-                  color="tab:green", alpha=0.12, label="acceptable 15-18 C")
+                  color="tab:green", alpha=0.12,
+                  label="acceptable %g-%g C"
+                        % (config.T_BAND_LOW_C, config.T_BAND_HIGH_C))
     ax[0].plot(th, r["T"], color="tab:blue", lw=1.6, label="room T")
     ax[0].axhline(config.T_ON_C, color="0.5", ls=":", lw=0.9)
     ax[0].axhline(config.T_OFF_C, color="0.5", ls=":", lw=0.9,
-                  label="ON 17.5 / OFF 15.5")
+                  label="ON %g / OFF %g" % (config.T_ON_C, config.T_OFF_C))
     ax[0].set_ylabel("temperature [C]")
-    ax[0].set_title("Server room - %s day  (40 mm / %s stand-in)"
+    ax[0].set_title("Server room - %s day  (30 mm / %s stand-in)"
                     % (r["season"], config.STANDIN_REFRIGERANT))
-    ax[0].set_ylim(13, 19); ax[0].legend(loc="upper right", fontsize=8)
+    _tlo = min(float(np.min(r["T"])), config.T_BAND_LOW_C)
+    _thi = max(float(np.max(r["T"])), config.T_BAND_HIGH_C)
+    _pad = 0.05 * (_thi - _tlo) + 0.5
+    ax[0].set_ylim(_tlo - _pad, _thi + _pad)
+    ax[0].legend(loc="upper right", fontsize=8)
 
     # (2) relative humidity (+ allowable band) and humidity ratio
     ax[1].axhspan(100 * config.PHI_ALLOW_LOW, 100 * config.PHI_ALLOW_HIGH,
@@ -74,7 +80,11 @@ def plot_overview(R, path):
         th = R[s]["t"] / 60.0
         ax[0].plot(th, R[s]["T"], color=colors[s], lw=1.3, label=s)
         ax[1].plot(th, 100 * R[s]["phi"], color=colors[s], lw=1.3, label=s)
-    ax[0].set_ylabel("room T [C]"); ax[0].set_ylim(13, 19)
+    _allT = np.concatenate([R[s]["T"] for s in config.SEASONS])
+    _tlo = min(float(_allT.min()), config.T_BAND_LOW_C)
+    _thi = max(float(_allT.max()), config.T_BAND_HIGH_C)
+    _pad = 0.05 * (_thi - _tlo) + 0.5
+    ax[0].set_ylabel("room T [C]"); ax[0].set_ylim(_tlo - _pad, _thi + _pad)
     ax[0].set_title("Four representative days - room temperature & humidity")
     ax[0].legend(loc="upper right", ncol=4, fontsize=8)
     ax[1].axhline(100 * config.PHI_ALLOW_LOW, color="tab:red", ls="--", lw=0.9)
