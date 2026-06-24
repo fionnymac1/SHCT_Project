@@ -1,10 +1,9 @@
 """
-Central configuration for the server-room cooling project (Task 1).
-ETH SHCT SS2026.
+Central configuration for the server-room cooling model
 
 UNIT CONVENTION
 ---------------
-The course wrappers (Fluid_CP, Fluid_CP_moist_air, Eh="CBar") and the provided
+The course add-ons (Fluid_CP, Fluid_CP_moist_air, Eh="CBar") and the provided
 compressor module all work in:
     temperature  : degC
     pressure     : bar
@@ -73,9 +72,7 @@ V_MAX_BEAUFORT5_M_S = 10.7
 # -- it does NOT use this velocity cap. So Beaufort-5 stays only as the acoustic
 # NOT-TO-EXCEED limit the task asks us to "consider"; the operating flow is a
 # design variable (VENT_FLOW_DESIGN_M3S below), not this cap.
-A_SUPPLY_M2 = 0.20           # [ASSUMPTION][FLAG] refine against a real grille
-# Slide 35 rule of thumb: a supply dT of ~10 K is needed to keep velocities
-# acceptable -> this couples the flow cap to the evaporator temperature.
+A_SUPPLY_M2 = 0.20           # [ASSUMPTION][FLAG] refine to make sure vmax <= 0.25
 DELTA_T_SUPPLY_GUIDE_K = 10.0
 
 # ----------------------------------------- ventilation DESIGN flow (1.2 / 1.3)
@@ -83,7 +80,8 @@ DELTA_T_SUPPLY_GUIDE_K = 10.0
 # volumetric flow rate" as a design variable and says to choose the ventilation
 # cooling power "wisely to avoid undesirable temperature fluctuations", so the
 # operating flow is NOT the acoustic cap above -- the cap is only an upper bound.
-#
+
+
 # Sizing rule (ours, justified). The room is ~1st-order toward ambient with
 # time constant tau = M_air / (rho * V); one timestep closes a fraction
 # f = 1 - exp(-dt/tau) of (T_room - T_amb). The worst single VENT step starts at
@@ -106,42 +104,67 @@ DELTA_T_SUPPLY_GUIDE_K = 10.0
 # defines the 18-27 degC recommended inlet envelope adopted for the band. (This
 # replaces the air-changes-per-hour rule removed below, which is an IAQ fresh-air
 # metric, not a heat-removal sizing basis.)
-VENT_FLOW_DESIGN_M3S = 0.30     # [ASSUMPTION] on/off ventilator design flow
+# ONE ventilator, TWO flows (single unit = the §5 coupling; a VFD or an intake
+# DAMPER gives the two speeds). The duties don't overlap: free cooling needs the
+# LOW flow (below, else a worst winter step overshoots the low band) while AC
+# recirc needs a HIGH flow (else T_AC < T_ev + pinch).
+#
+# Only the LOW (vent) flow is a free design constant and lives here. The HIGH (AC
+# recirc) flow is NOT a constant: it must carry the compressor's full on/off
+# capacity, which scales ~bore^2, so a single number cannot be right for all three
+# bores. It is therefore DERIVED per (bore, refrigerant) from that combo's capacity
+# map in flow_limits.ac_fan_flow_from_map(), and the one-ventilator coupling
+# (acoustic cap + vent->AC turndown) is checked in flow_limits.assert_ac_fan_feasible().
+# (The removed AC_FAN_FLOW_M3S = 0.62 was bore30's number applied to every bore: it
+# undersized bore40/50, pinned T_AC at the coil floor and corrupted the humidity track.)
+VENT_FLOW_DESIGN_M3S = 0.15     # LOW: free cooling. Matches the tau/overshoot
+                                # derivation above (was wrongly 0.30 -> overshot).
+
+# AC-fan sizing ceiling: highest room temperature the recirc fan must serve.
+# [ASSUMPTION] set to the worst control OVERSHOOT (~35 degC), NOT the band top. The
+# on/off controller's standstill-lockout x slew-rate drives T_room to ~34.8 in the
+# four-day sim (see overshoot analysis); the fan must keep its coil pinch THERE too
+# or the coil floors (fan_under) mid-excursion. Sizing to this (vs band+2K) inflates
+# V_AC ~25% and, by design, EXPOSES which bores can no longer be served within the
+# Beaufort-5 acoustic cap / single-VFD turndown -> a Task-3 feasibility result, not a
+# crash (check_ac_fan_feasible warns + clamps). Revert to ~T_BAND_HIGH_C + 2 if the
+# overshoot is later tightened. NB observed max 34.8 -> 0.2 K margin; bump to 36 (map
+# grid top) for headroom.
+T_ROOM_MAX_DESIGN_C = 35.0
+# [task 4] ventilation fan power depends on HOW the low flow is made: a damper
+# throttles a fixed-speed fan (~near-full power at low flow) -> free cooling costs
+# more; a VFD scales ~flow^3 -> free cooling near-free. Decide & justify.
 
 # ------------------------------------------------- AC cycle (Task-1 stand-in)
 # Subcritical VCC. Constant approach temperatures (also off-design):
 #   T_ev = T_room - DT_APPROACH_EVAP_K     (source side)
 #   T_co = T_amb  + DT_APPROACH_COND_K     (sink side)
-# Air-side: air leaves the coil at  T_AC = T_ev + DT_APPROACH_AIR_K.
-#
-# [ASSUMPTION][FLAG] evaporator-approach magnitude = the key compromise.
-#   To dehumidify (brief), the coil must sit BELOW the room dew point
-#   (~7.3 degC at 15 degC / 60 %). With DT_APPROACH_AIR_K = 3 that needs
-#   T_AC < 7.3  =>  T_ev < ~4.3  =>  DT_APPROACH_EVAP_K > ~11 K. A larger
-#   approach also delivers the ~10 K supply dT the velocity cap wants, but it
-#   LOWERS T_ev and therefore COP. This magnitude is exactly the
-#   COP-vs-(dehumidification + comfort) trade-off the Task-2 inner optimisation
-#   must resolve; here it is fixed as a defensible stand-in.
-# TODO: corroborate with ex.3 to understand if we have to optimize it
-DT_APPROACH_EVAP_K = 12.0    # -> T_ev = T_room - 12  (3 degC at 15 degC room)
-DT_APPROACH_COND_K = 5.0     # [ASSUMPTION]
-DT_APPROACH_AIR_K = 3.0      # T_AC = T_ev + 3   (answer to setup question 3)
-DELTA_T_SUPERHEAT_K = 5.0    # [ASSUMPTION] realistic suction superheat
-DELTA_T_SUBCOOL_K = 0.0      # note: IGNORED by the compressor fn; affects
-                             # refrigerating effect / COP only, not m_dot or eta
+
+# Constant approaches (held off-design too): T_ev = T_room - EVAP, T_co = T_amb + COND.
+# These are LUMPED reservoir->plateau differences (source/sink INLET air to the
+# refrigerant saturation plateau), NOT the local min-pinch. The course min-pinch
+# (Lecture 3 / Ex.3 = 0.5-5 K) is realised here as the evaporator AIR approach.
+# Resolved 2026-06-23 against Ex.3 + air-cooled field data:
+#  EVAP 12 K: DX evaporator return-air -> evaporating-temp TD. Field ~8-20 K
+#     (high-eff..typical). Ex.3's optimum gave T_so_in - T_ev = 10.5 K for a WATER
+#     source; ambient AIR is worse -> 12 K. = ~9 K coil air glide + ~3 K AIR pinch.
+#  COND 10 K: condensing-temp -> ambient-air TD. Air-cooled field ~7-12 K. Ex.3's
+#     5.6 K was a WATER sink; ours is ambient AIR. Raised from old 5 K because
+#     5 K COND with 5 K subcool forced T_3 = T_amb (subcool to ambient = zero
+#     condenser cold-end pinch, unphysical); 10 K gives a realistic 5 K liquid-to-
+#     ambient approach. [Revert to 5.0 only for a high-eff/oversized condenser,
+#     and then drop subcool below 5 K to stay physical.]
+DT_APPROACH_EVAP_K = 12.0
+DT_APPROACH_COND_K = 10.0
+DT_APPROACH_AIR_K  = 3.0     # evaporator cold-end pinch: T_AC = T_ev + this.
+DELTA_T_SUPERHEAT_K = 5.0    # [ASSUMPTION]
+DELTA_T_SUBCOOL_K = 5.0      # [ASSUMPTION] 
 MIN_PRESSURE_RATIO = 2.0     # compressor envelope; binds at low ambient
 
 # Stand-in (bore, refrigerant) for the Task-1 demonstration run.
 # The full sweep over BORES x REFRIGERANTS is Task 3.
-STANDIN_BORE_MM = 30.0       # AC-side of lever #2 (Task-3 selection): smallest
-                             # 2-cyl bore that ~meets the 5 kW peak with Propane
-                             # (4.98 kW at the worst load/ambient coincidence,
-                             # 5 kW @ 35 C hour 15.5 -- ~0.4% short, within noise;
-                             # AC then runs near-continuously at peak, which avoids
-                             # the 10-min standstill that drove the ~34 C top).
-                             # Gentle capacity -> night over-cool only ~-4 K (floor
-                             # holds ~19 C) vs ~-10 K at 40 mm. (Was 40 mm.)
-STANDIN_REFRIGERANT = "Propane"
+STANDIN_BORE_MM = 30.0       # [ASSUMPTION] 30 mm bore is the stand-in for the Task-1 demonstration run
+STANDIN_REFRIGERANT = "Propane" # [ASSUMPTION] Propane is the stand-in for the Task-1 demonstration run
 ROOM_VOLUME_M3 = ROOM_LENGTH_M * ROOM_WIDTH_M * ROOM_HEIGHT_M
 
 
@@ -158,10 +181,7 @@ MIN_PRESSURE_RATIO = 2.0
 COMPRESSOR_BORES_MM = [30.0, 40.0, 50.0]
 COMPRESSOR_N_CYL = 2         # RESOLVED (Moodle, L. Liebl 2026-06-11): the task's
                              # "4-cylinder" was a TYPO. The AC is a 2-cylinder
-                             # compressor, exactly as recip_comp_corr_SP computes;
-                             # use the provided function AS-IS (no x2 scaling).
-                             # (Staff will also accept a 4-cyl design if already
-                             #  produced; we use the intended 2-cyl.)
+                             # compressor, exactly as recip_comp_corr_SP computes
 REFRIGERANTS = ["Propane", "R1234yf", "DimethylEther"]   # exact CoolProp names
 
 # Part-load degradation (Hint 2): COP_res = COP_inner * PLR / (0.9*PLR + 0.1)

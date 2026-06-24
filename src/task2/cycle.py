@@ -23,6 +23,28 @@ up to MIN_PRESSURE_RATIO * p_ev (compressor holds a minimum head); the cycle
 stays operable at a COP penalty. Without this there is an uncooled gap in mild
 weather (ambient too warm for free cooling, lift too small for the envelope).
 
+Inner COP optimisation (lecture #3 standard form)
+    decision variables : superheat dT_sh, subcooling dT_sc
+                         (T_ev, T_co are fixed by the constant-approach assumption,
+                          so they are NOT free decision variables in this model)
+    objective          : maximise COP_inner = q_evap / w_comp
+    constraints        : dT_sh >= dT_sh,min     (dry suction; compressor protection)
+                         dT_sc <= T_co - T_amb  (sink bound; subcool only toward ambient)
+                         p_co / p_ev >= 2       (compressor envelope; see clamp above)
+                         T_dis <= T_dis,max     (discharge-temperature limit)
+    solution           : the optimum lies on the constraint boundaries, so the map is
+                         built at FIXED dT_sh, dT_sc (no per-point solver). Verified in
+                         analysis/superheat_subcool_sweep.py:
+                           dT_sc -> upper bound  T_co - T_amb : COP_inner is monotone
+                             increasing in subcool for all three refrigerants
+                             (+3.4..5.8 %). This is the dominant lever.
+                           dT_sh -> lower bound  dT_sh,min    : COP_inner is nearly flat
+                             and refrigerant-dependent in sign (Propane/R1234yf +, DME -),
+                             so the dry-suction minimum is chosen; it is within ~1-3 % of
+                             optimal for every fluid.
+                         Both decisions are precomputed into the (T_room,T_amb) map
+                         (Hint 1); the time simulation never re-optimises the cycle.
+
 States via the course wrapper Fluid_CP.state (Eh='CBar' -> degC, bar, kJ/kg).
 Compressor mass flow + isentropic efficiency from the provided module.
 """
@@ -68,6 +90,7 @@ def cycle_point(T_room_C, T_amb_C, bore_mm=None, refrigerant=None,
 
     h1, h2s = z1["h"], z2s["h"]
     h2 = h1 + (h2s - h1) / eta_is
+    T_dis = FCP.state(["p", "h"], [p_co, h2], refrigerant, Eh=EH)["T"]  # actual discharge temp
 
     if dt_sc > 0.0:
         z3 = FCP.state(["T", "p"], [T_co - dt_sc, p_co], refrigerant, Eh=EH)
@@ -86,7 +109,7 @@ def cycle_point(T_room_C, T_amb_C, bore_mm=None, refrigerant=None,
         "p_ratio": p_ratio, "clamped": clamped,
         "eta_is": eta_is, "m_dot": m_dot,
         "q_evap": q_evap, "w_comp": w_comp,
-        "Q_AC_kW": Q_AC, "W_kW": W, "COP_inner": cop,
+        "Q_AC_kW": Q_AC, "W_kW": W, "COP_inner": cop, "T_dis": T_dis,
         "T_AC": T_ev + config.DT_APPROACH_AIR_K,
     }
 
