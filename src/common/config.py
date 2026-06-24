@@ -139,27 +139,31 @@ T_ROOM_MAX_DESIGN_C = 35.0
 # Subcritical VCC. Constant approach temperatures (also off-design):
 #   T_ev = T_room - DT_APPROACH_EVAP_K     (source side)
 #   T_co = T_amb  + DT_APPROACH_COND_K     (sink side)
-
-# Constant approaches (held off-design too): T_ev = T_room - EVAP, T_co = T_amb + COND.
-# These are LUMPED reservoir->plateau differences (source/sink INLET air to the
-# refrigerant saturation plateau), NOT the local min-pinch. The course min-pinch
-# (Lecture 3 / Ex.3 = 0.5-5 K) is realised here as the evaporator AIR approach.
-# Resolved 2026-06-23 against Ex.3 + air-cooled field data:
-#  EVAP 12 K: DX evaporator return-air -> evaporating-temp TD. Field ~8-20 K
-#     (high-eff..typical). Ex.3's optimum gave T_so_in - T_ev = 10.5 K for a WATER
-#     source; ambient AIR is worse -> 12 K. = ~9 K coil air glide + ~3 K AIR pinch.
-#  COND 10 K: condensing-temp -> ambient-air TD. Air-cooled field ~7-12 K. Ex.3's
-#     5.6 K was a WATER sink; ours is ambient AIR. Raised from old 5 K because
-#     5 K COND with 5 K subcool forced T_3 = T_amb (subcool to ambient = zero
-#     condenser cold-end pinch, unphysical); 10 K gives a realistic 5 K liquid-to-
-#     ambient approach. [Revert to 5.0 only for a high-eff/oversized condenser,
-#     and then drop subcool below 5 K to stay physical.]
-DT_APPROACH_EVAP_K = 12.0
-DT_APPROACH_COND_K = 10.0
-DT_APPROACH_AIR_K  = 3.0     # evaporator cold-end pinch: T_AC = T_ev + this.
-DELTA_T_SUPERHEAT_K = 5.0    # [ASSUMPTION]
-DELTA_T_SUBCOOL_K = 5.0      # [ASSUMPTION] 
+# Air-side: air leaves the coil at  T_AC = T_ev + DT_APPROACH_AIR_K.
+#
+# [ASSUMPTION][FLAG] evaporator-approach magnitude = the key compromise.
+#   To dehumidify (brief), the coil must sit BELOW the room dew point
+#   (~7.3 degC at 15 degC / 60 %). With DT_APPROACH_AIR_K = 3 that needs
+#   T_AC < 7.3  =>  T_ev < ~4.3  =>  DT_APPROACH_EVAP_K > ~11 K. A larger
+#   approach also delivers the ~10 K supply dT the velocity cap wants, but it
+#   LOWERS T_ev and therefore COP. This magnitude is exactly the
+#   COP-vs-(dehumidification + comfort) trade-off the Task-2 inner optimisation
+#   must resolve; here it is fixed as a defensible stand-in.
+# TODO: corroborate with ex.3 to understand if we have to optimize it
+DT_APPROACH_EVAP_K = 12.0    # -> T_ev = T_room - 12  (3 degC at 15 degC room)
+DT_APPROACH_COND_K = 5.0     # [ASSUMPTION]
+DT_APPROACH_AIR_K = 3.0      # T_AC = T_ev + 3   (answer to setup question 3)
+DELTA_T_SUPERHEAT_K = 5.0    # [ASSUMPTION] realistic suction superheat
+DELTA_T_SUBCOOL_K = 0.0      # note: IGNORED by the compressor fn; affects
+                             # refrigerating effect / COP only, not m_dot or eta
 MIN_PRESSURE_RATIO = 2.0     # compressor envelope; binds at low ambient
+
+# Pinch-point floors for cycle.optimize_cop: the minimum allowed approach
+# temperature on each heat exchanger (T_room - T_ev and T_co - T_amb), i.e.
+# how close the refrigerant may sit to the air stream before heat-exchanger
+# area would need to go to infinity. [ASSUMPTION] 5 K each side.
+PINCH_EVAP_K = 5.0           # floor on T_room - T_ev
+PINCH_COND_K = 5.0           # floor on T_co - T_amb
 
 # Stand-in (bore, refrigerant) for the Task-1 demonstration run.
 # The full sweep over BORES x REFRIGERANTS is Task 3.
