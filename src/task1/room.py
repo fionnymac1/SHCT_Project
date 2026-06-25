@@ -36,6 +36,8 @@ this room's coil runs colder (T_AC ~ T_room - 9).
 
 Units: degC, kJ/kg_a, kg, kg/s, s, kW. p = 1 bar.
 """
+import numpy as np
+from scipy.optimize import fsolve
 from common import config
 from common import Fluid_CP_moist_air as Fmoist
 
@@ -47,25 +49,42 @@ M_AIR = config.M_AIR_KG          # kg dry air; module global so sensitivity.py
 def state_Tphi(T_C, phi):
     """(X, h*) of a moist-air stream at (T, phi) from ONE state_moist call.
     Used for the ambient air in VENT (phi < 1 there, so the (T,phi) entry is
-    robust).  Replaces a separate X-then-h* pair on the same point, halving the
-    state_moist calls per VENT step."""
-    s = Fmoist.state_moist(["T", "phi"], [T_C, phi])
-    return float(s["X"]), float(s["h*"])
+    robust).  Replaces a separate X-then-h* pair on the same point"""
+    z = Fmoist.state_moist(["T", "phi"], [T_C, phi])
+    return float(z["X"]), float(z["h*"])
 
 
+# Define Xsat so it can be called from simulation for varying T_AC
 def Xsat(T_C):
     """Saturated water content X_sat at T  (phi = 1)."""
     return float(Fmoist.state_moist(["T", "phi"], [T_C, 1.0])["X"])
 
 
+# Water-enthalpy reference of the course module (the local h_w0 inside
+# state_moist): saturated-liquid water at the triple point (0.01 degC, 611.7 Pa).
+_H_W0 = float(Fmoist.state(["T", "p"], [0.01, 611.7e-5], "water", "CBar")["h"])
+
+
 def hstar(T_C, X):
-    """h* [kJ/kg_a] at (T, X) via state_moist.  A saturated X (X >= X_sat, e.g.
-    the dehumidifying coil outlet) is routed through the robust (T,phi=1) entry;
-    state_moist's (T,X) branch returns a wrong h* or raises at saturation
-    (verified for T in ~4-10 degC).  See module docstring."""
+    """h* [kJ/kg_a] at (T, X), valid on the WHOLE plane incl. the fog region.
+
+    Three regimes about the saturation line X_sat(T):
+      X <  X_sat : unsaturated -> module forward (T, X).
+      X ~ X_sat  : saturated   -> robust (T, phi=1) entry (the (T,X) branch is
+                   numerically unreliable AT saturation; see module docstring).
+      X >  X_sat : OVERSATURATED / fog. state_moist returns NaN here. The vapour
+                   holds only X_sat; the excess (X - X_sat) has condensed to
+                   liquid carrying h_w_liq(T), so
+                       h* = h*_sat(T) + (X - X_sat) * h_w_liq(T)
+                   (standard Mollier fog enthalpy). Continuous with the saturated
+                   value - the added term vanishes at X = X_sat.
+    """
     sat = Fmoist.state_moist(["T", "phi"], [T_C, 1.0])     # X_sat and h*_sat
-    if X >= float(sat["X"]) - 1e-9:
-        return float(sat["h*"])                            # saturated / clamped
+    X_sat, h_sat = float(sat["X"]), float(sat["h*"])
+    if X >= X_sat - 1e-9:                                  # saturated or fog
+        h_w_liq = float(Fmoist.state(["T", "x"], [T_C, 0.0],
+                                     "water", "CBar")["h"]) - _H_W0
+        return h_sat + max(0.0, X - X_sat) * h_w_liq       # fog term -> 0 at sat
     return float(Fmoist.state_moist(["T", "X"], [T_C, X])["h*"])
 
 
@@ -82,24 +101,70 @@ def invert(h_, mw):
     queries liquid water at the dew point, so it is only valid for a dew point
     above CoolProp's 0.01 degC triple point.  The AC dries this room to
     ~11-26 % RH (dew point < 0 degC) in every season, where that call CRASHES.
-    Instead, T is found by solving the module's OWN forward h*(T,X) = h_ (Newton,
-    seeded with the closed-form guess), using only the robust unsaturated (T,X)
-    evaluation.  This is an exact inverse of the forward (no reference bias);
-    phi is then read off the module."""
+    Instead, T is found by solving the module's OWN forward h*(T,X) = h_ with a
+    seeded fsolve (the Ex7 fluid-helper idiom, fsolve(hilf, 303.)), using only the
+    robust unsaturated (T,X) evaluation.  This is an exact inverse of the forward
+    (no reference bias); phi is then read off the module."""
     X = mw / M_AIR
-    T = (h_ - 2501.0 * X) / (1.006 + 1.86 * X)         # closed-form seed only
-    for _ in range(6):                                  # Newton on module forward
-        dT = (h_ - float(Fmoist.state_moist(["T", "X"], [T, X])["h*"])) \
-             / (1.006 + 1.86 * X)
-        T += dT
-        if abs(dT) < 1e-4:
-            break
+    T_seed = (h_ - 2501.0 * X) / (1.006 + 1.86 * X)    # closed-form guess
+    def res(T):                                         # residual on module forward
+        return float(Fmoist.state_moist(["T", "X"], [float(T[0]), X])["h*"]) - h_
+    T = float(fsolve(res, T_seed)[0])                  # seeded solve, Ex7 idiom
     phi = float(Fmoist.state_moist(["T", "X"], [T, X])["phi"])
     return T, phi, X
 
 
-def enthalpy_at(T_C, X):
-    return hstar(T_C, X)
+# --------------------------------------------------------- closure B (coil outlet)
+# The AC fan runs at a FIXED recirculation flow (config.AC_FAN_FLOW_M3S), so the
+# coil-outlet air state is the DEPENDENT variable: outlet enthalpy follows from the
+# energy balance  h_sink = h_room - Q_AC/m_dot_air , and (T_AC, X_sink) sit on the
+# saturation line when the coil condenses (else dry at X_room), floored at the
+# physical air pinch  T_ev + DT_APPROACH_AIR_K  (below it the air would need an
+# infinite coil -> the fan is undersized for that Q_AC at this point).
+_SAT = None   # cached (T, h_sat, X_sat) along the saturation line, built once
+
+
+def _sat_tables():
+    global _SAT
+    if _SAT is None:
+        Tg = np.linspace(0.5, 40.0, 80)     # >0.01 C water triple point (CoolProp)
+        Hg, Xg = [], []
+        for Tc in Tg:
+            z = Fmoist.state_moist(["T", "phi"], [float(Tc), 1.0])
+            Hg.append(float(z["h*"])); Xg.append(float(z["X"]))
+        _SAT = (Tg, np.array(Hg), np.array(Xg))
+    return _SAT
+
+
+def _T_dry(h_target, X):
+    """T with hstar(T, X) = h_target  (unsaturated; seeded fsolve on the module
+    forward, same scheme as invert())."""
+    T_seed = (h_target - 2501.0 * X) / (1.006 + 1.86 * X)   # closed-form guess
+    def res(T):                                             # residual on hstar
+        return hstar(float(T[0]), X) - h_target
+    return float(fsolve(res, T_seed)[0])                    # seeded solve, Ex7 idiom
+
+
+def coil_outlet_B(h_room, X_room, Q_AC, m_dot_AC, T_ev_C):
+    """Closure-B AC coil outlet at the FIXED recirc mass flow m_dot_AC [kg/s].
+    Outlet enthalpy h_sink = h_room - Q_AC/m_dot_AC; (T_AC, X_sink) on the
+    saturation line if condensing, else dry; floored at T_ev + air pinch.
+    Returns (h_sink, T_AC, X_sink, fan_ok)."""
+    Tg, Hg, Xg = _sat_tables()
+    h_sink = h_room - Q_AC / m_dot_AC
+    T_wet = float(np.interp(h_sink, Hg, Tg))               # saturation-line inverse
+    X_sat_wet = float(np.interp(T_wet, Tg, Xg))
+    if X_room >= X_sat_wet:                                # coil condenses (wet)
+        T_AC, X_sink = T_wet, X_sat_wet
+    else:                                                  # dry cooling, X unchanged
+        T_AC, X_sink = _T_dry(h_sink, X_room), X_room
+    T_floor = T_ev_C + config.DT_APPROACH_AIR_K
+    fan_ok = T_AC >= T_floor - 1e-9
+    if not fan_ok:                                         # undersized: clamp to pinch
+        T_AC = T_floor
+        X_sink = min(X_room, float(np.interp(T_AC, Tg, Xg)))
+        h_sink = hstar(T_AC, X_sink)                       # Q absorbed < Q_AC
+    return h_sink, T_AC, X_sink, fan_ok
 
 
 def rhs(z, t, mode, p):
@@ -110,12 +175,12 @@ def rhs(z, t, mode, p):
     X = mw / M_AIR
     Q_server = p["Q_server"]
     if mode == "AC":
+        # Closure B: recirc flow is FIXED (the fan); p["h_sink"] = h_room_start
+        # - Q_AC/m_dot was derived from it. Q_cool = m_dot*(h_-h_sink) self-limits
+        # as the room cools (equals Q_AC at the step start).
         denom = h_ - p["h_sink"]
-        if denom > 1e-6:
-            Q_cool = p["Q_AC"]                 # full compressor capacity
-            m_dot = Q_cool / denom             # recirculation flow floats
-        else:                                  # room at/below the coil enthalpy
-            Q_cool = m_dot = 0.0
+        m_dot = p["m_dot_AC"] if denom > 0.0 else 0.0
+        Q_cool = m_dot * denom
         dhdt = (Q_server - Q_cool) / M_AIR
         dmwdt = (p["X_sink"] - X) * m_dot
     elif mode == "VENT":

@@ -13,6 +13,7 @@ COP_res is keyed to the demand/capacity ratio Q_server/Q_AC (see cop_res).
 AC capacity Q_AC and COP_inner come from the precomputed (T_room,T_amb) map
 (Hint 1, interpolated). Run from the repository root.
 """
+import warnings
 import numpy as np
 from scipy.integrate import odeint
 from common import config, data_io
@@ -53,6 +54,27 @@ def simulate_season(season, cmap):
     N = len(t)
     dt_s = config.TIME_STEP_MIN * 60.0
 
+    # Per-combo AC recirc flow, DERIVED from THIS map's capacity (not a config
+    # constant): size to the max Q_AC over the room's AC-on operating window so the
+    # coil outlet keeps its >=AIR pinch above T_ev at every on-step. Capacity ~bore^2,
+    # so each (bore, refrigerant) gets its own fan. Cached on the map; the single-
+    # ventilator coupling (acoustic cap + vent->AC turndown) is asserted once.
+    if "V_AC_fan_m3s" not in cmap:
+        V_sized, cmap["Q_AC_max_oper_kW"] = flow_limits.ac_fan_flow_from_map(cmap)
+        cmap["V_AC_fan_m3s"], cmap["vent_ac_turndown"], _ = \
+            flow_limits.check_ac_fan_feasible(V_sized)
+    V_AC_fan = cmap["V_AC_fan_m3s"]
+
+    # Free-cooling flow should not overshoot the low band on its worst forced step
+    # (coldest ambient, lowest server, min run); WARN (not crash) so the sweep keeps
+    # every candidate and the design choice stays visible. Binds at winter.
+    _t_land, _vent_ok = flow_limits.vent_overshoot_ok(
+        VENT_FLOW_DESIGN_M3S, float(np.min(q_amb)), float(np.min(q_srv)))
+    if not _vent_ok:
+        warnings.warn("%s: a worst forced VENT step lands at %.1f degC, below the "
+                      "%.1f degC low band -> consider a lower design flow."
+                      % (season, _t_land, config.T_BAND_LOW_C))
+
     T = np.zeros(N); PHI = np.zeros(N); X = np.zeros(N)
     MODE = np.empty(N, dtype=object)
     QCOOL = np.zeros(N); QAC = np.zeros(N); QDEM = np.zeros(N)
@@ -62,6 +84,7 @@ def simulate_season(season, cmap):
     T[0], PHI[0], X[0] = room.invert(*z)
     state = "OFF"
     comp_run, comp_idle = 0, control.MIN_STANDSTILL_STEPS   # compressor timers
+    fan_under = 0                                           # closure-B undersize flag
     MODE[0] = state; QDEM[0] = q_srv[0]
 
     for i in range(1, N):
@@ -78,10 +101,16 @@ def simulate_season(season, cmap):
         if state == "AC":
             # ON/OFF: compressor flat out -> full capacity at this operating pt.
             Q_AC, cop_in = cycle.lookup(cmap, T_room, T_amb)
-            T_AC = T_room - config.DT_APPROACH_EVAP_K + config.DT_APPROACH_AIR_K
-            X_sink = min(X_now, room.Xsat(T_AC))            # condensation 2-case
-            h_sink = room.hstar(T_AC, X_sink)
-            p = {"Q_server": Q_srv, "Q_AC": Q_AC,
+            # Closure B: fixed recirc flow (the AC fan) -> the coil outlet
+            # (h_sink, T_AC, X_sink) is DERIVED from the air energy balance + the
+            # saturation line, floored at T_ev + air pinch (fan_ok flags undersize).
+            T_ev = T_room - config.DT_APPROACH_EVAP_K
+            m_dot_AC = config.AIR_DENSITY_KG_M3 * V_AC_fan
+            h_sink, T_AC, X_sink, fan_ok = room.coil_outlet_B(
+                h_room, X_now, Q_AC, m_dot_AC, T_ev)
+            if not fan_ok:
+                fan_under += 1
+            p = {"Q_server": Q_srv, "Q_AC": Q_AC, "m_dot_AC": m_dot_AC,
                  "h_sink": h_sink, "X_sink": X_sink}
             # Hint 2 part-load keyed to demand/capacity (see cop_res docstring).
             cr = cop_res(cop_in, Q_srv, Q_AC)
@@ -104,7 +133,9 @@ def simulate_season(season, cmap):
         T[i], PHI[i], X[i] = room.invert(*z)
         MODE[i] = state; QDEM[i] = Q_srv
 
-    return _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WEL, COPR)
+    res = _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WEL, COPR)
+    res["ac_fan_undersized_steps"] = fan_under
+    return res
 
 
 def _count_starts(mode, label):

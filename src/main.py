@@ -31,19 +31,18 @@ def main():
     print("TASK 1.3 on/off control - four-season simulation")
     print("=" * 70)
     R = simulation.simulate_all(cmap)
-    hdr = ("season  | Tmin Tmax  rec  allow | RHmin RHmax  rec  allow | "
-           "AC start/min  VENT start/min | E_AC  E_vent")
+    hdr = ("season  | Tmin Tmax  in-band | RHmin RHmax | AC start/min  "
+           "VENT start/min | E_AC  E_vent | fanU")
     print(hdr); print("-" * len(hdr))
     for s in config.SEASONS:
         r = R[s]
-        print("%-7s | %4.1f %4.1f %4.0f%% %4.0f%% | %4.0f%% %4.0f%% %4.0f%% %4.0f%% | "
-              "%2d /%5.0f   %2d /%5.0f | %5.2f %5.2f kWh"
-              % (s, r["T_min"], r["T_max"],
-                 100 * r["frac_T_recommended"], 100 * r["frac_T_allowable"],
+        print("%-7s | %4.1f %4.1f   %4.0f%%  | %4.0f%% %4.0f%% | "
+              "%2d /%5.0f   %2d /%5.0f | %5.2f %5.2f kWh | %4d"
+              % (s, r["T_min"], r["T_max"], 100 * r["frac_in_band"],
                  100 * r["phi_min"], 100 * r["phi_max"],
                  100 * r["frac_phi_recommended"], 100 * r["frac_phi_allowable"],
                  r["ac_starts"], r["ac_min"], r["vent_starts"], r["vent_min"],
-                 r["E_ac_kWh"], r["E_vent_kWh"]))
+                 r["E_ac_kWh"], r["E_vent_kWh"], r["ac_fan_undersized_steps"]))
 
     os.makedirs("figures", exist_ok=True)
     for s in config.SEASONS:
