@@ -26,9 +26,12 @@ from task3 import sweep
 def main_single(refrigerant, bore_mm, season):
     print("Single run: %s, %.0f mm, %s day" % (refrigerant, bore_mm, season))
     r, metrics = sweep.run_single_day(refrigerant, bore_mm, season)
-    print("in-band %5.1f%%  Tmin %4.1f  Tmax %4.1f  RHmin %3.0f%%  RHmax %3.0f%%  "
+    print("T rec %5.1f%%  T allow %5.1f%%  Tmin %4.1f  Tmax %4.1f  "
+          "RH rec %5.1f%%  RH allow %5.1f%%  RHmin %3.0f%%  RHmax %3.0f%%  "
           "AC starts %d  AC-min %.0f  E_tot %.2f kWh"
-          % (100 * metrics["frac_in_band"], metrics["T_min"], metrics["T_max"],
+          % (100 * metrics["frac_T_recommended"], 100 * metrics["frac_T_allowable"],
+             metrics["T_min"], metrics["T_max"],
+             100 * metrics["frac_phi_recommended"], 100 * metrics["frac_phi_allowable"],
              100 * metrics["phi_min"], 100 * metrics["phi_max"],
              metrics["ac_starts_total"], metrics["ac_min_total"],
              metrics["E_total_kWh"]))
@@ -54,14 +57,16 @@ def main():
     out_csv = os.path.join("results", "task3_design_comparison.csv")
     df_ranked.to_csv(out_csv, index=False)
 
-    hdr = ("rank refrigerant   bore | in-band  Tmin Tmax | RHmin RHmax | "
-           "AC starts AC-min | E_tot kWh")
+    hdr = ("rank refrigerant   bore | T rec T allow  Tmin Tmax | RH rec RH allow "
+           "RHmin RHmax | AC starts AC-min | E_tot kWh")
     print("\n" + hdr); print("-" * len(hdr))
     for _, r in df_ranked.iterrows():
-        print("%4d %-13s %4.0fmm | %5.1f%% %4.1f %4.1f | %4.0f%% %4.0f%% | "
-              "%9d %6.0f | %9.2f"
+        print("%4d %-13s %4.0fmm | %5.1f%% %7.1f%% %4.1f %4.1f | %6.1f%% %8.1f%% "
+              "%4.0f%% %4.0f%% | %9d %6.0f | %9.2f"
               % (r["rank"], r["refrigerant"], r["bore_mm"],
-                 100 * r["frac_in_band"], r["T_min"], r["T_max"],
+                 100 * r["frac_T_recommended"], 100 * r["frac_T_allowable"],
+                 r["T_min"], r["T_max"],
+                 100 * r["frac_phi_recommended"], 100 * r["frac_phi_allowable"],
                  100 * r["phi_min"], 100 * r["phi_max"],
                  r["ac_starts_total"], r["ac_min_total"], r["E_total_kWh"]))
     print("\nComparison table written to %s" % out_csv)

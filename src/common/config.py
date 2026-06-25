@@ -37,18 +37,21 @@ PHI_INIT = 0.60
 P_BAR = 1.0
 
 # ----------------------------------------------- acceptable room-air bands
-# Temperature: ASHRAE TC9.9 (2021) RECOMMENDED envelope 18-27 degC, adopted as
-# the acceptable band per Bea's decision (2026-06-19). NB this RAISES the floor
-# to 18 (was 15); the wider ALLOWABLE A1 band is 15-32. This is a diagnostic
-# configuration: observe what the on/off controller violates under the
-# recommended band, then fix the operating conditions.
-T_BAND_LOW_C = 18.0          # [ASSUMPTION] ASHRAE recommended lower (was 15)
-T_BAND_HIGH_C = 27.0         # [ASSUMPTION] ASHRAE recommended upper (was 18)
+# Two nested envelopes, RECOMMENDED (comfort/target) vs ALLOWABLE (hard
+# safety limit, never to be crossed), per Bea's decision (2026-06-19).
+# RECOMMENDED drives the on/off setpoints (T_OFF_C/T_ON_C below); ALLOWABLE
+# is the wider pass/fail bound reported in plots and scored in Task 3.
+T_RECOMMENDED_LOW_C = 18.0   # [ASSUMPTION] ASHRAE recommended envelope lower
+T_RECOMMENDED_HIGH_C = 27.0  # [ASSUMPTION] ASHRAE recommended envelope upper
+T_ALLOW_LOW_C = 10.0         # hard lower limit
+T_ALLOW_HIGH_C = 35.0        # hard upper limit
+
 # Humidity is MONITORED, not controlled (no (de)humidifier actuator). The
 # binding risk is the LOWER bound: AC condensation dries the room.
-#TODO: Humidity monitored, not controlled. Analyze in the results
-PHI_ALLOW_LOW = 0.08         # ASHRAE A1 allowable lower
-PHI_ALLOW_HIGH = 0.80        # ASHRAE A1 allowable upper (start at 60 % is legal)
+PHI_RECOMMENDED_LOW = 0.30   # comfort/target band lower
+PHI_RECOMMENDED_HIGH = 0.70  # comfort/target band upper
+PHI_ALLOW_LOW = 0.20         # hard lower limit
+PHI_ALLOW_HIGH = 0.80        # hard upper limit
 
 # --------------------------------------------- control (1.3) state machine
 # Temperature-only on/off with hysteresis, both setpoints inside the band.

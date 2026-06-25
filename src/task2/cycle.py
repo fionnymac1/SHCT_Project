@@ -175,7 +175,8 @@ def default_grids():
     t_amb_all = np.concatenate(list(ambient.values()))
     t_amb_grid = np.arange(np.floor(t_amb_all.min()) - 1.0,
                             np.ceil(t_amb_all.max()) + 1.01, 1.0)
-    t_room_grid = np.arange(config.T_BAND_LOW_C - 10.0, config.T_BAND_HIGH_C + 10.01, 1.0)
+    t_room_grid = np.arange(config.T_RECOMMENDED_LOW_C - 10.0,
+                            config.T_RECOMMENDED_HIGH_C + 10.01, 1.0)
     return t_room_grid, t_amb_grid
 
 

@@ -44,7 +44,10 @@ def aggregate_metrics(refrigerant, bore_mm, R, seasons=None):
     seasons = list(R.keys()) if seasons is None else seasons
     return {
         "refrigerant": refrigerant, "bore_mm": bore_mm,
-        "frac_in_band": float(np.mean([R[s]["frac_in_band"] for s in seasons])),
+        "frac_T_recommended": float(np.mean([R[s]["frac_T_recommended"] for s in seasons])),
+        "frac_T_allowable": float(np.mean([R[s]["frac_T_allowable"] for s in seasons])),
+        "frac_phi_recommended": float(np.mean([R[s]["frac_phi_recommended"] for s in seasons])),
+        "frac_phi_allowable": float(np.mean([R[s]["frac_phi_allowable"] for s in seasons])),
         "T_min": float(min(R[s]["T_min"] for s in seasons)),
         "T_max": float(max(R[s]["T_max"] for s in seasons)),
         "phi_min": float(min(R[s]["phi_min"] for s in seasons)),
@@ -130,14 +133,17 @@ def run_all_designs(refrigerants=None, bores=None, verbose=True):
 def score_key(row):
     """Lexicographic ranking key (smaller = better), per the task sheet's
     selection criteria in priority order:
-      1. room air condition: maximise time spent in the acceptable band
-         (this is the actual requirement the system must meet);
-      2. overall energy demand: minimise total AC + ventilation electricity;
-      3. compressor start/stop cycles: minimise AC starts (mechanical wear).
-    Operating times (ac_min/vent_min) and humidity are reported alongside for
-    discussion but are not separately scored: they are largely implied by (1)
-    and (2) here (no active (de)humidifier to trade off against)."""
-    return (-row["frac_in_band"], row["E_total_kWh"], row["ac_starts_total"])
+      1. room air condition, hard safety bound first: maximise time within
+         the ALLOWABLE T and RH limits (never to be crossed -- a breach here
+         is a hardware-safety failure, worse than merely missing comfort);
+      2. room air condition, comfort target: maximise time within the
+         RECOMMENDED T band (the day-to-day operating goal);
+      3. overall energy demand: minimise total AC + ventilation electricity;
+      4. compressor start/stop cycles: minimise AC starts (mechanical wear).
+    Operating times (ac_min/vent_min) are reported alongside for discussion
+    but not separately scored (largely implied by (1)/(2)/(3))."""
+    return (-min(row["frac_T_allowable"], row["frac_phi_allowable"]),
+            -row["frac_T_recommended"], row["E_total_kWh"], row["ac_starts_total"])
 
 
 def rank(df_compare):

@@ -13,7 +13,7 @@ All powers in kW, flows in m3/s, temperatures in degC/K.
 """
 import warnings
 import numpy as np
-from common import config
+from common import config, data_io
 
 
 # --------------------------------------------------------------- Task 1.1
@@ -25,6 +25,20 @@ def required_cooling_power_kw(server_by_season):
     oversizing is penalised by part-load COP degradation (Task 3).
     """
     return float(max(np.max(s) for s in server_by_season.values()))
+
+
+def design_peak_load_kw():
+    """Rated (nameplate) peak server heat load, ~5 kW here. A fixed design
+    number computed once from the server-load profile, NOT a live sensor
+    reading -- the controller's only sensors are room/ambient temperature
+    (see task1.control.vent_feasible), so it cannot see the actual
+    instantaneous Q_demand and must size ventilation against the worst case
+    instead."""
+    server_raw, _ = data_io.load_raw()
+    return float(np.max(server_raw))
+
+
+Q_DESIGN_PEAK_KW = design_peak_load_kw()
 
 
 # --------------------------------------------------------------- Task 1.2
