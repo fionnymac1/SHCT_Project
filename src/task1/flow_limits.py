@@ -132,6 +132,19 @@ def check_ac_fan_feasible(V_sized_m3s, max_turndown=10.0):
     return V_used, turndown, clamped
 
 
+def freecool_dt_for_ac_flow(cmap, q_peak_kw):
+    """One-flow-vs-two-flow ventilation diagnostic. If the SINGLE ventilator ran
+    free cooling at the AC RECIRC flow (V_vent = V_AC) instead of the gentle design
+    flow, the room-ambient dT for free cooling ALONE to carry the peak load:
+        dT = q_peak / (rho * cp * V_AC).
+    Returns (Q_AC_max_kW, V_AC_m3s, dT_K). COVERAGE dT only -- the same high flow
+    OVERSHOOTS the low band at any larger dT (one ~5-min step, tau ~ M_air/(rho*
+    V_AC) ~ 1 timestep), which is exactly why VENT_FLOW_DESIGN_M3S stays gentle."""
+    v_ac, q_max = ac_fan_flow_from_map(cmap)
+    dt = q_peak_kw / (config.AIR_DENSITY_KG_M3 * config.CP_AIR_KJ_KGK * v_ac)
+    return q_max, v_ac, dt
+
+
 def vent_step_landing_C(V_flow_m3s, T0_C, T_amb_C, q_server_kw, dt_min=None):
     """Room temperature after one VENT step (lumped sensible balance incl. server):
         M*cp*dT/dt = q_server - rho*V*cp*(T - T_amb)  ->  first order toward T_eq.

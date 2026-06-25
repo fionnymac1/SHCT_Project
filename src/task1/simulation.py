@@ -89,7 +89,7 @@ def simulate_season(season, cmap):
 
     for i in range(1, N):
         T_room, T_amb, Q_srv = T[i - 1], q_amb[i], q_srv[i]
-        new = control.decide(state, comp_run, comp_idle, T_room, T_amb, Q_srv)
+        new = control.decide(state, comp_run, comp_idle, T_room, T_amb)
         if new == "AC":
             comp_run += 1; comp_idle = 0
         else:

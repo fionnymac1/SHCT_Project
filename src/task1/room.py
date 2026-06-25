@@ -109,13 +109,14 @@ def invert(h_, mw):
     T_seed = (h_ - 2501.0 * X) / (1.006 + 1.86 * X)    # closed-form guess
     def res(T):                                         # residual on module forward
         return float(Fmoist.state_moist(["T", "X"], [float(T[0]), X])["h*"]) - h_
-    T = float(fsolve(res, T_seed)[0])                  # seeded solve, Ex7 idiom
+    T = float(fsolve(res, T_seed)[0])                  # seeded solve, Ex7 
     phi = float(Fmoist.state_moist(["T", "X"], [T, X])["phi"])
     return T, phi, X
 
 
 # --------------------------------------------------------- closure B (coil outlet)
-# The AC fan runs at a FIXED recirculation flow (config.AC_FAN_FLOW_M3S), so the
+# The AC fan runs at a FIXED recirculation flow per (bore, refrigerant) -- m_dot_AC,
+# sized in flow_limits.ac_fan_flow_from_map() and passed in by simulation.py -- so the
 # coil-outlet air state is the DEPENDENT variable: outlet enthalpy follows from the
 # energy balance  h_sink = h_room - Q_AC/m_dot_air , and (T_AC, X_sink) sit on the
 # saturation line when the coil condenses (else dry at X_room), floored at the

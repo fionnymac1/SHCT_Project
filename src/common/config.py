@@ -53,8 +53,16 @@ PHI_ALLOW_HIGH = 0.80        # ASHRAE A1 allowable upper (start at 60 % is legal
 # --------------------------------------------- control (1.3) state machine
 # Temperature-only on/off with hysteresis, both setpoints inside the band.
 # TODO: check the delta of the bang bang controller is sufficient to prevent excessive cycling
-T_OFF_C = 21.5               # cooling switches OFF at/below this (centred in 18-27 band)
-T_ON_C = 23.5                # cooling switches ON  at/above this (2 K hysteresis, target ~22.5)
+T_OFF_C = 21.5               # all cooling switches OFF at/below this
+T_ON_C = 23.5                # FREE COOLING (VENT) switches on at/above this
+T_ON_AC_C = 25.0             # MECHANICAL COOLING (AC) setpoint, > T_ON_C. VENT is
+                             # tried first in [T_ON_C, T_ON_AC_C); if free cooling
+                             # cannot hold the room and T climbs to here, escalate to
+                             # AC. [ASSUMPTION] T_ON + 1.5 K. This temperature-only
+                             # staging REPLACES the old load-based VENT->AC test
+                             # (the controller has no load sensor; the room
+                             # temperature itself is the adequacy signal). Widen the
+                             # T_ON..T_ON_AC gap if doomed VENT attempts churn the AC.
 TIME_STEP_MIN = 5.0          # simulation timestep ("sufficiently accurrate" but maybe worth running a sensitivity analysis on this)
 # TODO: "Typical minimal standstill and running times of air conditioning units" but check if there is further information on this
 MIN_RUN_MIN = 5.0            # minimum run time      = 1 step
@@ -131,7 +139,7 @@ VENT_FLOW_DESIGN_M3S = 0.15     # LOW: free cooling. Matches the tau/overshoot
 # overshoot is later tightened. NB observed max 34.8 -> 0.2 K margin; bump to 36 (map
 # grid top) for headroom.
 T_ROOM_MAX_DESIGN_C = 35.0
-# [task 4] ventilation fan power depends on HOW the low flow is made: a damper
+# TODO: [task 4] ventilation fan power depends on HOW the low flow is made: a damper
 # throttles a fixed-speed fan (~near-full power at low flow) -> free cooling costs
 # more; a VFD scales ~flow^3 -> free cooling near-free. Decide & justify.
 
@@ -151,11 +159,18 @@ T_ROOM_MAX_DESIGN_C = 35.0
 #   must resolve; here it is fixed as a defensible stand-in.
 # TODO: corroborate with ex.3 to understand if we have to optimize it
 DT_APPROACH_EVAP_K = 12.0    # -> T_ev = T_room - 12  (3 degC at 15 degC room)
-DT_APPROACH_COND_K = 5.0     # [ASSUMPTION]
+DT_APPROACH_COND_K = 10.0    # [ASSUMPTION] realistic AIR-cooled approach: field ~7-12 K
+                             # (Ex.3's 5.6 K was a WATER sink). Reverted from the merge's
+                             # optimistic 5 K, which implies an oversized/high-eff condenser
+                             # (lower lift -> higher COP than is realistic for air cooling).
 DT_APPROACH_AIR_K = 3.0      # T_AC = T_ev + 3   (answer to setup question 3)
 DELTA_T_SUPERHEAT_K = 5.0    # [ASSUMPTION] realistic suction superheat
-DELTA_T_SUBCOOL_K = 0.0      # note: IGNORED by the compressor fn; affects
-                             # refrigerating effect / COP only, not m_dot or eta
+DELTA_T_SUBCOOL_K = 5.0      # liquid leaves at T_co-5 = T_amb+5 (physical 5 K condenser
+                             # cold-end pinch). Reverted from the merge's 0. NB COP rises
+                             # MONOTONICALLY with subcool to the sink bound (superheat_subcool
+                             # _sweep), so a FIXED 5 K is conservative, not the optimum.
+                             # IGNORED by the compressor fn; affects q_evap / COP only, not
+                             # m_dot or eta.
 MIN_PRESSURE_RATIO = 2.0     # compressor envelope; binds at low ambient
 
 # Pinch-point floors for cycle.optimize_cop: the minimum allowed approach
@@ -169,19 +184,7 @@ PINCH_COND_K = 5.0           # floor on T_co - T_amb
 # The full sweep over BORES x REFRIGERANTS is Task 3.
 STANDIN_BORE_MM = 30.0       # [ASSUMPTION] 30 mm bore is the stand-in for the Task-1 demonstration run
 STANDIN_REFRIGERANT = "Propane" # [ASSUMPTION] Propane is the stand-in for the Task-1 demonstration run
-ROOM_VOLUME_M3 = ROOM_LENGTH_M * ROOM_WIDTH_M * ROOM_HEIGHT_M
 
-
-# --------------------------------------------------------- ventilation flow note
-# Removed FLOW_RATE_ACH (=9 ACH) and SAFETY_MARGIN (=1.15): an air-changes-per-
-# hour rule plus a margin. ACH is an indoor-air-quality fresh-air metric (not a
-# heat-removal basis), it was unused, and the velocity cap already bounds the
-# flow. The operating flow is now VENT_FLOW_DESIGN_M3S (above). Old "map ACH to
-# Beaufort" TODO resolved: v = ACH * V_room / 3600 / A_supply, i.e. an ACH target
-# and a velocity cap are the SAME constraint once A_supply is fixed (ACH 9 @
-# 0.20 m2 -> 0.45 m3/s -> 2.25 m/s -> Beaufort 2).
-
-MIN_PRESSURE_RATIO = 2.0
 COMPRESSOR_BORES_MM = [30.0, 40.0, 50.0]
 COMPRESSOR_N_CYL = 2         # RESOLVED (Moodle, L. Liebl 2026-06-11): the task's
                              # "4-cylinder" was a TYPO. The AC is a 2-cylinder
