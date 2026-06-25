@@ -4,7 +4,9 @@ Task 1.3 control - temperature-only on/off state machine.
   * hysteresis: cooling switches ON at/above T_ON_C, OFF at/below T_OFF_C;
     inside the deadband the current mode is held.
   * free-cooling-first: when cooling is needed, use VENT if the design flow can
-    carry the load (vent_feasible), else AC.
+    carry the worst-case (design-peak) load at the current dT (vent_feasible),
+    else AC -- the unit has no load sensor, only temperature, so feasibility is
+    judged against the fixed design-peak load rather than the live Q_demand.
   * vent-assist: while the compressor is in its mandatory standstill it is OFF,
     so the shared fan is otherwise idle -> if ambient is below the room, run VENT
     for PARTIAL cooling to trim the rise (vent_available). The compressor stays
@@ -34,28 +36,34 @@ def vent_available(T_room, T_amb):
     return T_amb < T_room - 0.5
 
 
-def vent_feasible(T_room, T_amb, Q_demand):
+def vent_feasible(T_room, T_amb):
     """Free cooling usable as the PRIMARY mode: ambient below the room AND the
-    fixed design flow can carry the current load at this dT. Under on/off the
-    ventilator runs at a single design speed, so the test compares the load
-    against what THAT flow removes (V_min <= V_design) -- not against the acoustic
-    cap. (The cap still bounds V_design itself; see config.VENT_FLOW_DESIGN_M3S.)
-    Choosing AC when the gentle design flow cannot carry the load prevents the
-    room from drifting up under inadequate ventilation (modes are exclusive)."""
+    fixed design flow can carry the load at this dT. The unit has only
+    temperature sensors -- no heat-load metering -- so the live Q_demand is
+    unobservable to the controller; instead this checks against the fixed
+    DESIGN PEAK load (flow_limits.Q_DESIGN_PEAK_KW, ~5 kW), i.e. the worst case
+    the room can ever see. Vent is approved if and only if it could cover that
+    peak at the current dT, which guarantees it can also cover the actual
+    (smaller-or-equal, unmeasured) load -- a temperature-only, conservative
+    stand-in for the load-aware test. Under on/off the ventilator runs at a
+    single design speed, so the test compares the peak load against what THAT
+    flow removes (V_min <= V_design) -- not against the acoustic cap. (The cap
+    still bounds V_design itself; see config.VENT_FLOW_DESIGN_M3S.)"""
     if not vent_available(T_room, T_amb):
         return False
-    return flow_limits.v_min_m3s(Q_demand, T_room - T_amb) <= \
+    return flow_limits.v_min_m3s(flow_limits.Q_DESIGN_PEAK_KW, T_room - T_amb) <= \
         config.VENT_FLOW_DESIGN_M3S
 
 
-def decide(state, comp_run_steps, comp_idle_steps, T_room, T_amb, Q_demand):
+def decide(state, comp_run_steps, comp_idle_steps, T_room, T_amb):
     """Next mode in {OFF, VENT, AC}. comp_run_steps = steps the compressor has
     run continuously; comp_idle_steps = steps since it last ran (counts OFF and
     VENT alike). Compressor min-run/standstill gate only AC transitions; the fan
     switches freely."""
+
     want_cool = T_room >= config.T_ON_C
     want_off = T_room <= config.T_OFF_C
-    vf = vent_feasible(T_room, T_amb, Q_demand)
+    vf = vent_feasible(T_room, T_amb)
 
     if state == "AC":
         # compressor must run >= min-run before it may stop
