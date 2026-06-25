@@ -50,7 +50,6 @@ Compressor mass flow + isentropic efficiency from the provided module.
 """
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
-from scipy.optimize import minimize
 from common import config, Fluid_CP as FCP, compressor_model as comp
 
 EH = "CBar"
@@ -118,52 +117,6 @@ def cycle_point(T_room_C, T_amb_C, bore_mm=None, refrigerant=None,
         "dt_sc_actual": dt_sc
     }
 
-def optimize_cop(T_room_C, T_amb_C, bore_mm=None, refrigerant=None):
-    """Floats T_ev and T_co to maximize COP_inner, subject to pinch-point
-    floors on each heat exchanger's approach temperature:
-        T_room_C - T_ev >= config.PINCH_EVAP_K
-        T_co - T_amb_C  >= config.PINCH_COND_K
-    Superheat/subcool stay locked at the config defaults. COP_inner need not
-    be monotonic in (T_ev, T_co) since the compressor's eta_is/m_dot vary
-    with both, so the floors are passed to SLSQP as bounds rather than
-    assumed to be the optimum outright.
-    """
-    bore_mm = config.STANDIN_BORE_MM if bore_mm is None else bore_mm
-    refrigerant = config.STANDIN_REFRIGERANT if refrigerant is None else refrigerant
-
-    T_ev_max = T_room_C - config.PINCH_EVAP_K
-    T_co_min = T_amb_C + config.PINCH_COND_K
-
-    def objective(x):
-        T_ev, T_co = x
-        try:
-            res = cycle_point(T_room_C, T_amb_C, bore_mm, refrigerant,
-                               T_ev_C=T_ev, T_co_C=T_co)
-            if res["COP_inner"] <= 0:
-                return 1e6
-            return -res["COP_inner"]
-        except Exception:
-            # Catch fluid boundary errors from the CoolProp wrapper
-            return 1e6
-
-    bounds = [
-        (T_ev_max - 40.0, T_ev_max),     # T_ev: capped by the evap pinch floor
-        (T_co_min, T_co_min + 50.0),     # T_co: floored by the cond pinch floor
-    ]
-    x0 = [
-        min(T_room_C - config.DT_APPROACH_EVAP_K, T_ev_max),
-        max(T_amb_C + config.DT_APPROACH_COND_K, T_co_min),
-    ]
-
-    sol = minimize(objective, x0, method="SLSQP", bounds=bounds)
-
-    if sol.success:
-        T_ev_opt, T_co_opt = sol.x
-        return cycle_point(T_room_C, T_amb_C, bore_mm, refrigerant,
-                            T_ev_C=T_ev_opt, T_co_C=T_co_opt)
-    # Fallback to the standard unoptimized config if the solver fails to converge
-    return cycle_point(T_room_C, T_amb_C, bore_mm, refrigerant)
-
 
 def default_grids():
     """The (T_room, T_amb) grid main_task2.py sizes its maps on: T_amb spans the
@@ -185,7 +138,13 @@ def build_map(T_room_grid=None, T_amb_grid=None, bore_mm=None, refrigerant=None)
     RegularGridInterpolator (Hint 1). With no grid args this uses a WIDE
     stand-in range (Task 1's single-bore demo run, which can overshoot the
     acceptable band); main_task2.py / Task 3 instead pass the narrower,
-    data-driven grid from default_grids() above."""
+    data-driven grid from default_grids() above.
+
+    Each grid point uses cycle_point's constant-approach cycle. This is already
+    the optimum, not just a stand-in: cycle_opt.optimize_cop (the SLSQP inner
+    optimisation over T_ev/T_co) verifies that the pinch floors are the binding
+    constraint everywhere, so the floored constant-approach point and the true
+    optimum coincide (see cycle_opt.py's __main__ self-test)."""
     if T_room_grid is None:
         T_room_grid = np.arange(13.0, 36.01, 1.0)   # widened: 18-27 band pushes T_room up; don't extrapolate the AC map
     if T_amb_grid is None:

@@ -38,7 +38,7 @@ def main():
         r = R[s]
         print("%-7s | %4.1f %4.1f   %4.0f%%  | %4.0f%% %4.0f%% | "
               "%2d /%5.0f   %2d /%5.0f | %5.2f %5.2f kWh | %4d"
-              % (s, r["T_min"], r["T_max"], 100 * r["frac_in_band"],
+              % (s, r["T_min"], r["T_max"], 100 * r["frac_T_recommended"],
                  100 * r["phi_min"], 100 * r["phi_max"],
                  100 * r["frac_phi_recommended"], 100 * r["frac_phi_allowable"],
                  r["ac_starts"], r["ac_min"], r["vent_starts"], r["vent_min"],

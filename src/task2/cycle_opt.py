@@ -42,7 +42,13 @@ def _states(T_co, T_ev, refrigerant, dt_sh, dt_sc, bore_mm):
     eta_is, m_dot = comp.recip_comp_corr_SP(
         (T_ev, T_co, dt_sh, dt_sc, bore_mm), refrigerant)
     h2 = z1["h"] + (z2s["h"] - z1["h"]) / eta_is
-    z3 = FCP.state(["T", "p"], [T_co - dt_sc, p_co], refrigerant, Eh=EH)    # subcooled liquid
+    if dt_sc > 0.0:
+        z3 = FCP.state(["T", "p"], [T_co - dt_sc, p_co], refrigerant, Eh=EH)    # subcooled liquid
+    else:
+        # dt_sc = 0 sits exactly on the saturation line; (T, p) there is the
+        # degenerate two-phase boundary and CoolProp errors (see cycle.cycle_point's
+        # same guard). Use the robust (T, x=0) saturated-liquid entry instead.
+        z3 = FCP.state(["T", "x"], [T_co, 0.0], refrigerant, Eh=EH)
     q_evap = z1["h"] - z3["h"]      # h1 - h4 (isenthalpic throttle, h4 = h3)
     w_comp = h2 - z1["h"]
     return p_ev, p_co, q_evap, w_comp, eta_is, m_dot

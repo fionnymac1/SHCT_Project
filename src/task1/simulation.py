@@ -73,7 +73,7 @@ def simulate_season(season, cmap):
     if not _vent_ok:
         warnings.warn("%s: a worst forced VENT step lands at %.1f degC, below the "
                       "%.1f degC low band -> consider a lower design flow."
-                      % (season, _t_land, config.T_BAND_LOW_C))
+                      % (season, _t_land, config.T_RECOMMENDED_LOW_C))
 
     T = np.zeros(N); PHI = np.zeros(N); X = np.zeros(N)
     MODE = np.empty(N, dtype=object)
