@@ -277,7 +277,9 @@ COLOR_SERVER_LOAD = ETH_RED
 COLOR_COOLING_DELIVERED = ETH_BLUE
 COLOR_RECOMMENDED_BAND = ETH_GREEN   # comfort/target band shading (T and RH)
 COLOR_ALLOWABLE_LIMIT = ETH_RED      # hard safety-limit lines (T and RH)
-COLOR_SETPOINT = ETH_GREY            # ON/OFF hysteresis setpoint lines
+COLOR_SETPOINT = ETH_GREY            # cooling-OFF setpoint trace
+COLOR_SETPOINT_AC = ETH_PURPLE       # AC-on setpoint trace (plot_season panel 1)
+COLOR_SETPOINT_VENT = ETH_BRONZE     # VENT-on setpoint trace (plot_season panel 1)
 COLOR_SELECTED_DESIGN = ETH_BRONZE   # Task-3-selected design highlight outline
 COLOR_NEUTRAL = ETH_GREY             # reference lines, contour overlays, etc.
 

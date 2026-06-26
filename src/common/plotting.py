@@ -77,24 +77,18 @@ def plot_season(r, path, label=None):
                   color=config.COLOR_RECOMMENDED_BAND, alpha=0.12,
                   label="recommended %g-%g C"
                         % (config.T_RECOMMENDED_LOW_C, config.T_RECOMMENDED_HIGH_C))
-    ax[0].axhline(config.T_ALLOW_LOW_C, color="tab:red", ls="--", lw=0.9,
-    ax[0].plot(th, r["T"], color=config.COLOR_ROOM_T, lw=1.6, label="room T")
-    ax[0].axhline(config.T_ON_C, color=config.COLOR_SETPOINT, ls=":", lw=0.9)
-    ax[0].axhline(config.T_OFF_C, color=config.COLOR_SETPOINT, ls=":", lw=0.9,
-                  label="ON %g / OFF %g" % (config.T_ON_C, config.T_OFF_C))
     ax[0].axhline(config.T_ALLOW_LOW_C, color=config.COLOR_ALLOWABLE_LIMIT, ls="--", lw=0.9,
                   label="allowable %g-%g C"
                         % (config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C))
-    ax[0].axhline(config.T_ALLOW_HIGH_C, color="tab:red", ls="--", lw=0.9)
-    # setpoints under the room-T line (room T plotted last -> stays on top)
-    ax[0].step(th, tonac, where="post", color="tab:purple", ls="-.", lw=1.1,
-               label=_level_label("AC on", tonac))
-    ax[0].step(th, ton, where="post", color="tab:orange", ls="--", lw=1.1,
-               label=_level_label("VENT on", ton))
-    ax[0].step(th, toff, where="post", color="0.45", ls=":", lw=1.1,
-               label=_level_label("cooling OFF", toff))
-    ax[0].plot(th, r["T"], color="tab:blue", lw=1.6, label="room T", zorder=6)
     ax[0].axhline(config.T_ALLOW_HIGH_C, color=config.COLOR_ALLOWABLE_LIMIT, ls="--", lw=0.9)
+    # setpoints under the room-T line (room T plotted last -> stays on top)
+    ax[0].step(th, tonac, where="post", color=config.COLOR_SETPOINT_AC, ls="-.", lw=1.1,
+               label=_level_label("AC on", tonac))
+    ax[0].step(th, ton, where="post", color=config.COLOR_SETPOINT_VENT, ls="--", lw=1.1,
+               label=_level_label("VENT on", ton))
+    ax[0].step(th, toff, where="post", color=config.COLOR_SETPOINT, ls=":", lw=1.1,
+               label=_level_label("cooling OFF", toff))
+    ax[0].plot(th, r["T"], color=config.COLOR_ROOM_T, lw=1.6, label="room T", zorder=6)
     ax[0].set_ylabel("temperature [C]")
     ax[0].set_title("Server room - %s day  (%s)" % (r["season"], label))
     _tlo = min(float(np.min(r["T"])), config.T_ALLOW_LOW_C)
