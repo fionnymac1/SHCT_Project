@@ -7,13 +7,12 @@ import os
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
+from matplotlib.patches import Rectangle, Patch
 from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import pandas as pd
 from common import config
 
-_MODE_NUM = {"OFF": 0, "VENT": 1, "AC": 2}
 _MAP_LABELS = {"COP_inner": "$COP_{inner}$  [-]",
                "Q_AC_kW": "$\\dot{Q}_{AC}$  [kW]",
                "P_elec_kW": "$P_{elec}$  [kW]"}
@@ -64,6 +63,27 @@ def _level_label(name, trace):
     return "%s %.1f-%.1f C" % (name, lo, hi)
 
 
+def _mode_spans(t, mode, label):
+    """[(t_start, t_end), ...] for each contiguous run of mode == label, in
+    t's own units. Used to shade mode as a background band instead of a
+    step line -- a step line of rapid OFF/VENT/AC switching just renders as
+    a dense black smear, background shading reads cleanly at any switching
+    frequency."""
+    mode = np.asarray(mode)
+    is_label = (mode == label)
+    spans = []
+    start = None
+    for i, on in enumerate(is_label):
+        if on and start is None:
+            start = t[i]
+        elif not on and start is not None:
+            spans.append((start, t[i]))
+            start = None
+    if start is not None:
+        spans.append((start, t[-1]))
+    return spans
+
+
 def plot_season(r, path, label=None):
     """label: design description for the title, e.g. 'Propane, 40 mm'.
     Defaults to the Task-1 single-bore stand-in for backward compatibility."""
@@ -71,7 +91,9 @@ def plot_season(r, path, label=None):
         label = "%g mm / %s stand-in" % (config.STANDIN_BORE_MM, config.STANDIN_REFRIGERANT)
     th = r["t"] / 60.0
     fig, ax2d = plt.subplots(2, 2, figsize=(13, 8), sharex=True)
-    ax = [ax2d[0, 0], ax2d[0, 1], ax2d[1, 0], ax2d[1, 1]]   # [T, RH, DP, mode] -- flat indexing below unchanged
+    # [T, RH, DP, mode] -- humidity metrics (RH, DP) on the right column,
+    # the others (T, mode/power) on the left; flat indexing below unchanged
+    ax = [ax2d[0, 0], ax2d[0, 1], ax2d[1, 1], ax2d[1, 0]]
 
     # (1) room temperature: fixed comfort/safety envelopes + the THREE control
     # setpoints the run ACTUALLY used (cooling OFF / VENT on / AC on). The
@@ -97,7 +119,7 @@ def plot_season(r, path, label=None):
                label=_level_label("cooling OFF", toff))
     ax[0].plot(th, r["T"], color=config.COLOR_ROOM_T, lw=1.6, label="room T", zorder=6)
     ax[0].set_ylabel("temperature [C]")
-    ax[0].set_title("Server room - %s day  (%s)" % (r["season"], label))
+    fig.suptitle("Server room - %s day  (%s)" % (r["season"], label))
     _tlo = min(float(np.min(r["T"])), config.T_ALLOW_LOW_C)
     _thi = max(float(np.max(r["T"])), config.T_ALLOW_HIGH_C)
     _pad = 0.05 * (_thi - _tlo) + 0.5
@@ -118,7 +140,7 @@ def plot_season(r, path, label=None):
 
     # (3) dew point (+ allowable band -- hard limit only, no separate recommended target)
     ax[2].axhspan(config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C,
-                  color=config.COLOR_DEW_POINT, alpha=config.ALPHA_ALLOWABLE_BAND,
+                  color=config.COLOR_RECOMMENDED_BAND, alpha=config.ALPHA_ALLOWABLE_BAND,
                   label="allowable %g-%g C" % (config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C))
     ax[2].plot(th, r["T_dp"], color=config.COLOR_DEW_POINT, lw=1.5, label="dew point")
     ax[2].set_ylabel("dew point [C]")
@@ -129,16 +151,24 @@ def plot_season(r, path, label=None):
     ax[2].set_xlabel("time of day [h]"); ax[2].set_xlim(0, 24)
     ax[2].legend(loc="upper right", fontsize=8)
 
-    # (4) operating mode + cooling powers
-    mode_num = np.array([_MODE_NUM[m] for m in r["mode"]])
-    ax[3].step(th, mode_num, where="post", color=config.COLOR_NEUTRAL, lw=1.3)
-    ax[3].set_yticks([0, 1, 2]); ax[3].set_yticklabels(["OFF", "VENT", "AC"])
-    ax[3].set_ylim(-0.3, 2.3); ax[3].set_ylabel("mode")
+    # (4) operating mode (background shading -- NOT a step line, which just
+    # smears black at realistic OFF/VENT/AC switching rates) + cooling powers
+    for t0, t1 in _mode_spans(th, r["mode"], "AC"):
+        ax[3].axvspan(t0, t1, color=config.COLOR_AC, alpha=0.18, lw=0)
+    for t0, t1 in _mode_spans(th, r["mode"], "VENT"):
+        # faded black/grey, not green -- COLOR_VENT is the same green already
+        # used for the recommended/allowable bands in the other panels
+        ax[3].axvspan(t0, t1, color=config.COLOR_NEUTRAL, alpha=0.15, lw=0)
+    ax[3].set_yticks([])
     axc = ax[3].twinx()
     axc.plot(th, r["Q_dem"], color=config.COLOR_SERVER_LOAD, lw=1.2, label="server load")
     axc.plot(th, r["Q_cool"], color=config.COLOR_COOLING_DELIVERED, ls="--", lw=1.2, label="cooling delivered")
     axc.set_ylabel("power [kW]"); axc.set_ylim(0, max(8, r["Q_cool"].max() * 1.1))
-    axc.legend(loc="upper right", fontsize=8)
+    mode_handles = [Patch(facecolor=config.COLOR_AC, alpha=0.18, label="AC"),
+                    Patch(facecolor=config.COLOR_NEUTRAL, alpha=0.15, label="VENT")]
+    power_handles, power_labels = axc.get_legend_handles_labels()
+    axc.legend(handles=mode_handles + power_handles, labels=["AC", "VENT"] + power_labels,
+              loc="upper right", fontsize=8)
     ax[3].set_xlabel("time of day [h]"); ax[3].set_xlim(0, 24)
 
     fig.tight_layout()
@@ -182,7 +212,7 @@ def plot_overview(R, path, label=None):
     ax[1].set_ylabel("room RH [%]"); ax[1].set_ylim(0, 90)
     ax[1].legend(loc="upper right", ncol=2, fontsize=8)
     ax[2].axhspan(config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C,
-                  color=config.COLOR_DEW_POINT, alpha=config.ALPHA_ALLOWABLE_BAND,
+                  color=config.COLOR_RECOMMENDED_BAND, alpha=config.ALPHA_ALLOWABLE_BAND,
                   label="allowable %g-%g C" % (config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C))
     _allDP = np.concatenate([R[s]["T_dp"] for s in config.SEASONS])
     _dlo = min(float(_allDP.min()), config.DP_ALLOW_LOW_C)
@@ -319,7 +349,7 @@ def plot_design_comparison_detailed(df_compare, path, best=None):
     # (5) dew point range (dp_min - dp_max) per design -- allowable only
     a = ax[1, 1]
     a.axhspan(config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C,
-              color=config.COLOR_DEW_POINT, alpha=config.ALPHA_ALLOWABLE_BAND, label="allowable")
+              color=config.COLOR_RECOMMENDED_BAND, alpha=config.ALPHA_ALLOWABLE_BAND, label="allowable")
     lo, hi = df["dp_min"], df["dp_max"]
     a.bar(x, hi - lo, w, bottom=lo, color=config.COLOR_DEW_POINT)
     outline_bars(a, hi, lo)

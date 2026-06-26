@@ -84,7 +84,7 @@ def simulate_season(season, cmap):
     T = np.zeros(N); PHI = np.zeros(N); X = np.zeros(N)
     MODE = np.empty(N, dtype=object)
     QCOOL = np.zeros(N); QAC = np.zeros(N); QDEM = np.zeros(N)
-    WEL = np.zeros(N); COPR = np.zeros(N)
+    WCOMP = np.zeros(N); WFAN = np.zeros(N); COPR = np.zeros(N)
 
     z = room.initial_state()
     T[0], PHI[0], X[0] = room.invert(*z)
@@ -120,7 +120,11 @@ def simulate_season(season, cmap):
                  "h_sink": h_sink, "X_sink": X_sink}
             # Hint 2 part-load keyed to demand/capacity (see cop_res docstring).
             cr = cop_res(cop_in, Q_srv, Q_AC)
-            WEL[i] = Q_AC / cr if cr > 0 else 0.0           # full-capacity draw
+            WCOMP[i] = Q_AC / cr if cr > 0 else 0.0         # compressor full-capacity draw
+            # Shared ventilator also runs during AC (it drives the coil recirc
+            # flow V_AC_fan) -- same fan the task sheet says VENT and the AC
+            # evaporator airflow have in common, so it draws fan power here too.
+            WFAN[i] = FAN_SPECIFIC_POWER_KW_PER_M3S * V_AC_fan
             QCOOL[i] = Q_AC
             QAC[i], COPR[i] = Q_AC, cr
         elif state == "VENT":
@@ -128,7 +132,7 @@ def simulate_season(season, cmap):
             X_amb, h_amb = room.state_Tphi(T_amb, config.VENT_AMBIENT_PHI)
             rhoV = config.AIR_DENSITY_KG_M3 * V_vent
             p = {"Q_server": Q_srv, "rhoV": rhoV, "h_amb": h_amb, "X_amb": X_amb}
-            WEL[i] = FAN_SPECIFIC_POWER_KW_PER_M3S * V_vent
+            WFAN[i] = FAN_SPECIFIC_POWER_KW_PER_M3S * V_vent
             QCOOL[i] = max(0.0, rhoV * (h_room - h_amb))    # start-of-step trace
         else:
             p = {"Q_server": Q_srv}
@@ -139,7 +143,7 @@ def simulate_season(season, cmap):
         T[i], PHI[i], X[i] = room.invert(*z)
         MODE[i] = state; QDEM[i] = Q_srv
 
-    res = _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WEL, COPR)
+    res = _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WCOMP, WFAN, COPR)
     res["ac_fan_undersized_steps"] = fan_under
     return res
 
@@ -149,8 +153,9 @@ def _count_starts(mode, label):
                    if mode[i] == label and mode[i - 1] != label))
 
 
-def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WEL, COPR):
+def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WCOMP, WFAN, COPR):
     dt_h = config.TIME_STEP_MIN / 60.0
+    WEL = WCOMP + WFAN   # total instantaneous electrical draw, both equipment
     DP = room.dew_point_C(X)
     frac_T_recommended = np.mean((T >= config.T_RECOMMENDED_LOW_C) &
                                   (T <= config.T_RECOMMENDED_HIGH_C))
@@ -164,7 +169,8 @@ def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WEL, COPR):
                                  (DP <= config.DP_ALLOW_HIGH_C))
     return {
         "season": season, "t": t, "T": T, "phi": PHI, "X": X, "T_dp": DP, "mode": MODE,
-        "Q_cool": QCOOL, "Q_AC": QAC, "Q_dem": QDEM, "W_el": WEL, "COP_res": COPR,
+        "Q_cool": QCOOL, "Q_AC": QAC, "Q_dem": QDEM,
+        "W_el": WEL, "W_comp": WCOMP, "W_fan": WFAN, "COP_res": COPR,
         "T_min": float(T.min()), "T_max": float(T.max()),
         "phi_min": float(PHI.min()), "phi_max": float(PHI.max()),
         "dp_min": float(DP.min()), "dp_max": float(DP.max()),
@@ -178,8 +184,13 @@ def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WEL, COPR):
         "ac_min": float(np.sum(MODE == "AC") * config.TIME_STEP_MIN),
         "vent_min": float(np.sum(MODE == "VENT") * config.TIME_STEP_MIN),
         "off_min": float(np.sum(MODE == "OFF") * config.TIME_STEP_MIN),
-        "E_ac_kWh": float(np.sum(WEL * (MODE == "AC")) * dt_h),
-        "E_vent_kWh": float(np.sum(WEL * (MODE == "VENT")) * dt_h),
+        # By EQUIPMENT (compressor vs fan), not by mode -- the fan also runs
+        # during AC (shared ventilator drives the coil recirc flow), so a
+        # mode-based split (sum WEL where MODE=="AC"/"VENT") would silently
+        # drop that fan energy. E_ac_kWh = compressor only; E_vent_kWh = fan
+        # only, correctly including its AC-mode contribution.
+        "E_ac_kWh": float(np.sum(WCOMP) * dt_h),
+        "E_vent_kWh": float(np.sum(WFAN) * dt_h),
     }
 
 def simulate_all(cmap=None):

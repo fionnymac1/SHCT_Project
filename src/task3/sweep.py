@@ -138,22 +138,23 @@ def save_energy_by_hour(results_by_design, path=None):
     table, one row per (design, season, hour-of-day) -- the resolution Task 4
     needs to cost energy against REAL hourly day-ahead prices (data_io.
     load_dayahead_prices), not a flat per-season rate. Built from each
-    simulate_season() result's per-step t/mode/W_el arrays. Written alongside
-    the comparison CSV in main_task3.py."""
+    simulate_season() result's per-step t/W_comp/W_fan arrays. Split by
+    EQUIPMENT (W_comp/W_fan), not by mode -- the shared ventilator also runs
+    during AC (drives the coil recirc flow), so a mode-based split (W_el
+    where mode=="AC"/"VENT") would mislabel that fan energy as compressor
+    energy. Written alongside the comparison CSV in main_task3.py."""
     path = path or os.path.join("results", "task3_energy_by_hour.csv")
     dt_h = config.TIME_STEP_MIN / 60.0
     rows = []
     for (refrigerant, bore_mm), R in results_by_design.items():
         for season, r in R.items():
             hour = (r["t"] // 60).astype(int) % 24
-            is_ac = (r["mode"] == "AC")
-            is_vent = (r["mode"] == "VENT")
             for h in range(24):
                 sel = hour == h
                 rows.append({
                     "refrigerant": refrigerant, "bore_mm": bore_mm, "season": season, "hour": h,
-                    "E_ac_kWh": float(np.sum(r["W_el"][sel & is_ac]) * dt_h),
-                    "E_vent_kWh": float(np.sum(r["W_el"][sel & is_vent]) * dt_h),
+                    "E_ac_kWh": float(np.sum(r["W_comp"][sel]) * dt_h),
+                    "E_vent_kWh": float(np.sum(r["W_fan"][sel]) * dt_h),
                 })
     df = pd.DataFrame(rows)
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)

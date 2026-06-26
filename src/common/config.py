@@ -277,7 +277,6 @@ OKABE_REDDISH_PURPLE = "#CC79A7"
 # matplotlib name, so the mapping only has to be decided once, here.
 COLOR_ROOM_T = OKABE_BLUE
 COLOR_ROOM_RH = OKABE_REDDISH_PURPLE
-COLOR_HUMIDITY_RATIO = OKABE_SKY_BLUE
 COLOR_AC = OKABE_BLUE                # compressor: duty cycle, energy, starts, cost
 COLOR_VENT = OKABE_BLUISH_GREEN      # ventilation/fan: duty cycle, energy, starts, cost
 COLOR_OFF = OKABE_BLACK              # neutral: OFF duty-cycle segment
@@ -290,7 +289,7 @@ COLOR_SETPOINT_AC = OKABE_REDDISH_PURPLE      # AC-on setpoint trace (plot_seaso
 COLOR_SETPOINT_VENT = OKABE_ORANGE            # VENT-on setpoint trace (plot_season panel 1)
 COLOR_SELECTED_DESIGN = OKABE_ORANGE          # Task-3-selected design highlight outline
 COLOR_NEUTRAL = OKABE_BLACK                   # reference lines, contour overlays, etc.
-COLOR_DEW_POINT = OKABE_VERMILLION            # dew point trace + its allowable band
+COLOR_DEW_POINT = OKABE_SKY_BLUE              # dew point trace + its allowable band
 
 # Recommended/allowable bands are nested: SAME hue, recommended drawn darker
 # (the narrower INNER comfort target) and allowable lighter (the wider OUTER
