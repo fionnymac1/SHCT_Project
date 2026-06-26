@@ -18,6 +18,10 @@ _MAP_LABELS = {"COP_inner": "$COP_{inner}$  [-]",
                "Q_AC_kW": "$\\dot{Q}_{AC}$  [kW]",
                "P_elec_kW": "$P_{elec}$  [kW]"}
 
+# Sequential single-hue map (white -> ETH Blue) for the Task-2 contour plots,
+# replacing matplotlib's default "viridis" with an ETH-consistent gradient.
+_ETH_SEQUENTIAL = LinearSegmentedColormap.from_list("eth_sequential", ["white", config.ETH_BLUE])
+
 
 def _setpoint_traces(r):
     """The THREE control setpoints the run actually used at each step of r['t'],
