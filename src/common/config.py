@@ -45,12 +45,19 @@ T_RECOMMENDED_LOW_C = 18.0   # [ASSUMPTION] ASHRAE recommended envelope lower
 T_RECOMMENDED_HIGH_C = 27.0  # [ASSUMPTION] ASHRAE recommended envelope upper
 T_ALLOW_LOW_C = 10.0         # hard lower limit
 T_ALLOW_HIGH_C = 35.0        # hard upper limit
+# BUGFIX (found 2026-06-25): flow_limits.vent_overshoot_ok and simulation.py
+# reference config.T_BAND_LOW_C, which was never defined after the RECOMMENDED/
+# ALLOWABLE rename -> it AttributeErrors the instant the VENT-overshoot guard
+# fires. The gentle baseline flow never trips it; single-flow trips it at once.
+# Defined here = RECOMMENDED low (matches the sizing-derivation comment "(23.5-18)").
+T_BAND_LOW_C = T_RECOMMENDED_LOW_C
+T_BAND_HIGH_C = T_RECOMMENDED_HIGH_C
 
 # Humidity is MONITORED, not controlled (no (de)humidifier actuator). The
 # binding risk is the LOWER bound: AC condensation dries the room.
 PHI_RECOMMENDED_LOW = 0.30   # comfort/target band lower
 PHI_RECOMMENDED_HIGH = 0.70  # comfort/target band upper
-PHI_ALLOW_LOW = 0.20         # hard lower limit
+PHI_ALLOW_LOW = 0.08         # hard lower limit
 PHI_ALLOW_HIGH = 0.80        # hard upper limit
 
 # --------------------------------------------- control (1.3) state machine

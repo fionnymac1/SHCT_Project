@@ -65,11 +65,17 @@ def simulate_season(season, cmap):
             flow_limits.check_ac_fan_feasible(V_sized)
     V_AC_fan = cmap["V_AC_fan_m3s"]
 
+    # No-damper coupling (control.VENT_USES_AC_FLOW): VENT runs at the per-combo AC
+    # recirc flow instead of the gentle design flow. getattr fallback -> the original
+    # control.py (no such symbol) keeps the two-flow baseline, nothing else to revert.
+    V_vent = (control.vent_flow_m3s(V_AC_fan, VENT_FLOW_DESIGN_M3S)
+              if hasattr(control, "vent_flow_m3s") else VENT_FLOW_DESIGN_M3S)
+
     # Free-cooling flow should not overshoot the low band on its worst forced step
     # (coldest ambient, lowest server, min run); WARN (not crash) so the sweep keeps
     # every candidate and the design choice stays visible. Binds at winter.
     _t_land, _vent_ok = flow_limits.vent_overshoot_ok(
-        VENT_FLOW_DESIGN_M3S, float(np.min(q_amb)), float(np.min(q_srv)))
+        V_vent, float(np.min(q_amb)), float(np.min(q_srv)))
     if not _vent_ok:
         warnings.warn("%s: a worst forced VENT step lands at %.1f degC, below the "
                       "%.1f degC low band -> consider a lower design flow."
@@ -120,9 +126,9 @@ def simulate_season(season, cmap):
         elif state == "VENT":
             # ON/OFF: fan at its single design speed -> full acoustic flow.
             X_amb, h_amb = room.state_Tphi(T_amb, config.VENT_AMBIENT_PHI)
-            rhoV = config.AIR_DENSITY_KG_M3 * VENT_FLOW_DESIGN_M3S
+            rhoV = config.AIR_DENSITY_KG_M3 * V_vent
             p = {"Q_server": Q_srv, "rhoV": rhoV, "h_amb": h_amb, "X_amb": X_amb}
-            WEL[i] = FAN_SPECIFIC_POWER_KW_PER_M3S * VENT_FLOW_DESIGN_M3S
+            WEL[i] = FAN_SPECIFIC_POWER_KW_PER_M3S * V_vent
             QCOOL[i] = max(0.0, rhoV * (h_room - h_amb))    # start-of-step trace
         else:
             p = {"Q_server": Q_srv}

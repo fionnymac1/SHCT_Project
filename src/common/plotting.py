@@ -18,6 +18,46 @@ _MAP_LABELS = {"COP_inner": "$COP_{inner}$  [-]",
                "P_elec_kW": "$P_{elec}$  [kW]"}
 
 
+def _setpoint_traces(r):
+    """The THREE control setpoints the run actually used at each step of r['t'],
+    as arrays (T_OFF, T_ON_vent, T_ON_AC).
+
+    The control law stages three temperature setpoints (cooling OFF / VENT on /
+    AC on) and may shift the whole band DOWN with ambient via control.setpoints()
+    (the constant SCHED_G offset + the SCHED_K ambient ramp). So the live
+    setpoints are NOT the raw config.T_*_C constants, and with SCHED_K>0 they
+    vary over the day -> they must be drawn per step, not as fixed config lines.
+    Ambient is taken from r['T_amb'] if the sim stored it, else reconstructed
+    from the same data_io source + resample the sim used (so it matches the run).
+    Imported lazily to keep this plotting module free of any control/data import
+    cost (and any package-init cycle) when only the Task-2/3 plots are used."""
+    from common import data_io
+    from task1 import control
+    T_amb = r.get("T_amb")
+    if T_amb is None:
+        try:
+            _, amb_raw = data_io.load_raw()
+            _, T_amb = data_io.resample_day(amb_raw[r["season"]])
+        except Exception:
+            # Ambient unavailable: fall back to the schedule with a zero ramp
+            # term (exact for SCHED_K=0, a sane stand-in otherwise) so the
+            # figure still renders rather than crashing the whole plot.
+            off, on, on_ac = control.setpoints(control.SCHED_T_STAR)
+            n = len(r["t"])
+            return np.full(n, off), np.full(n, on), np.full(n, on_ac)
+    sp = np.array([control.setpoints(float(Ta)) for Ta in np.asarray(T_amb)])
+    return sp[:, 0], sp[:, 1], sp[:, 2]
+
+
+def _level_label(name, trace):
+    """'name 22.5 C' when a setpoint is constant over the day, else the range
+    'name 21.0-22.5 C' (an active ambient schedule, SCHED_K>0, moves it)."""
+    lo, hi = float(np.min(trace)), float(np.max(trace))
+    if hi - lo < 0.05:
+        return "%s %.1f C" % (name, lo)
+    return "%s %.1f-%.1f C" % (name, lo, hi)
+
+
 def plot_season(r, path, label=None):
     """label: design description for the title, e.g. 'Propane, 40 mm'.
     Defaults to the Task-1 single-bore stand-in for backward compatibility."""
@@ -26,26 +66,35 @@ def plot_season(r, path, label=None):
     th = r["t"] / 60.0
     fig, ax = plt.subplots(3, 1, figsize=(9, 8.5), sharex=True)
 
-    # (1) room temperature + recommended/allowable bands + hysteresis setpoints
+    # (1) room temperature: fixed comfort/safety envelopes + the THREE control
+    # setpoints the run ACTUALLY used (cooling OFF / VENT on / AC on). The
+    # ambient schedule shifts these off the raw config.T_*_C constants (and with
+    # SCHED_K>0 moves them through the day), so they are drawn per step from
+    # control.setpoints() -- not as the old fixed config.T_ON/T_OFF lines.
+    toff, ton, tonac = _setpoint_traces(r)
     ax[0].axhspan(config.T_RECOMMENDED_LOW_C, config.T_RECOMMENDED_HIGH_C,
                   color="tab:green", alpha=0.12,
                   label="recommended %g-%g C"
                         % (config.T_RECOMMENDED_LOW_C, config.T_RECOMMENDED_HIGH_C))
-    ax[0].plot(th, r["T"], color="tab:blue", lw=1.6, label="room T")
-    ax[0].axhline(config.T_ON_C, color="0.5", ls=":", lw=0.9)
-    ax[0].axhline(config.T_OFF_C, color="0.5", ls=":", lw=0.9,
-                  label="ON %g / OFF %g" % (config.T_ON_C, config.T_OFF_C))
     ax[0].axhline(config.T_ALLOW_LOW_C, color="tab:red", ls="--", lw=0.9,
                   label="allowable %g-%g C"
                         % (config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C))
     ax[0].axhline(config.T_ALLOW_HIGH_C, color="tab:red", ls="--", lw=0.9)
+    # setpoints under the room-T line (room T plotted last -> stays on top)
+    ax[0].step(th, tonac, where="post", color="tab:purple", ls="-.", lw=1.1,
+               label=_level_label("AC on", tonac))
+    ax[0].step(th, ton, where="post", color="tab:orange", ls="--", lw=1.1,
+               label=_level_label("VENT on", ton))
+    ax[0].step(th, toff, where="post", color="0.45", ls=":", lw=1.1,
+               label=_level_label("cooling OFF", toff))
+    ax[0].plot(th, r["T"], color="tab:blue", lw=1.6, label="room T", zorder=6)
     ax[0].set_ylabel("temperature [C]")
     ax[0].set_title("Server room - %s day  (%s)" % (r["season"], label))
     _tlo = min(float(np.min(r["T"])), config.T_ALLOW_LOW_C)
     _thi = max(float(np.max(r["T"])), config.T_ALLOW_HIGH_C)
     _pad = 0.05 * (_thi - _tlo) + 0.5
     ax[0].set_ylim(_tlo - _pad, _thi + _pad)
-    ax[0].legend(loc="upper right", fontsize=8)
+    ax[0].legend(loc="upper right", fontsize=8, ncol=2)
 
     # (2) relative humidity (+ recommended/allowable bands) and humidity ratio
     ax[1].axhspan(100 * config.PHI_RECOMMENDED_LOW, 100 * config.PHI_RECOMMENDED_HIGH,
