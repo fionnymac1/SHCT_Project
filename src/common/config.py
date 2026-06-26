@@ -287,3 +287,7 @@ COLOR_NEUTRAL = ETH_GREY             # reference lines, contour overlays, etc.
 # shared across plot_overview and any other multi-season figure.
 SEASON_COLORS = {"winter": ETH_BLUE, "spring": ETH_GREEN,
                  "summer": ETH_RED, "fall": ETH_BRONZE}
+
+# One colour per refrigerant, shared across any figure comparing all three
+# (e.g. analysis/superheat_subcool_sweep.py).
+REFRIGERANT_COLORS = {"Propane": ETH_BLUE, "R1234yf": ETH_GREEN, "DimethylEther": ETH_BRONZE}
