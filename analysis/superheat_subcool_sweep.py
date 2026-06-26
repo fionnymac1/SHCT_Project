@@ -1,6 +1,6 @@
 """
-Inner-cycle DOF study: justifies the FIXED superheat and the sink-bounded subcooling
-used in the COP map (see common/config.py and the standard-form block in task2/cycle.py).
+Inner-cycle DOF study: justifies the FIXED superheat and subcooling used in the COP map
+(see common/config.py and the standard-form block in task2/cycle.py).
 
 Why this script exists
 ----------------------
@@ -8,13 +8,17 @@ The task asks for "COP-optimal operation at each point in time". The cycle's onl
 candidate free decision variables are superheat (dT_sh) and subcooling (dT_sc) - the
 evaporation/condensation temperatures are pinned by the constant-approach assumption.
 This script sweeps both at a representative operating point for all three refrigerants
-and shows that the COP optimum is NOT interior but sits on the constraint boundaries,
-so the map can be built at fixed dT_sh/dT_sc with no per-point solver (Hint 1):
+and shows that the COP optimum is NOT interior but sits on (or near) the constraint
+boundaries, so the map can be built at fixed dT_sh/dT_sc with no per-point solver
+(Hint 1):
 
   * dT_sc: COP_inner is monotone INCREASING in subcooling for every refrigerant, so the
     optimum is the upper bound. Subcooling can only cool the liquid toward ambient, so
     that bound is  dT_sc,max = T_co - T_amb = the condenser approach (Lecture #10:
     "exploit subcooling as long as the condensation temperature must not be increased").
+    The map does NOT sit at that bound: config.DELTA_T_SUBCOOL_K = 5 K is a deliberately
+    conservative half-of-the-bound pick, leaving a physical cold-end pinch at the
+    condenser exit instead of letting the liquid approach T_amb with zero margin.
   * dT_sh: COP_inner is nearly flat in superheat AND refrigerant-dependent in SIGN, so
     there is no common optimum. eta_is from recip_comp_corr_SP depends only on the
     pressure ratio (= f(T_ev,T_co)), NOT on superheat - confirmed below. dT_sh is then
@@ -22,7 +26,7 @@ so the map can be built at fixed dT_sh/dT_sc with no per-point solver (Hint 1):
     compressor) below, and the discharge temperature above.
 
 Runnable directly (path self-bootstraps):  python3 analysis/superheat_subcool_sweep.py
-Writes a 2-panel figure to  superheat_subcool_sweep.png  in the repo root.
+Writes a 2-panel figure to  figures/superheat_subcool_sweep.png .
 """
 import os, sys
 # Make runnable from any cwd, no PYTHONPATH needed (same pattern as sensitivity.py):
@@ -37,12 +41,13 @@ from common import config
 from task2 import cycle
 
 REFRIGERANTS = ["Propane", "R1234yf", "DimethylEther"]
-T_ROOM, T_AMB = 15.0, 30.0     # representative point: T_ev = 3 C, T_co = 35 C
+T_ROOM, T_AMB = 15.0, 30.0     # representative point: T_ev = 3 C, T_co = 40 C
 BORE = config.STANDIN_BORE_MM
 SH_GRID = [0.5, 2, 5, 8, 10, 12, 15, 20]   # superheat sweep [K]
 SC_GRID = [0, 2, 5, 8, 10]                 # subcooling sweep [K]
 SC_BOUND = config.DT_APPROACH_COND_K       # sink bound = condenser approach [K]
 DT_SH_FIX = config.DELTA_T_SUPERHEAT_K     # fixed superheat used in the map
+DT_SC_FIX = config.DELTA_T_SUBCOOL_K       # fixed subcooling used in the map (< SC_BOUND)
 
 
 def _cop_q_tdis(refr, dt_sh, dt_sc):
@@ -79,23 +84,31 @@ def main():
     axL.set_title("COP vs superheat (sign is fluid-dependent)"); axL.legend(); axL.grid(alpha=.3)
 
     # (3) Subcool sweep (superheat fixed) - monotone up for all; bounded by the sink.
+    # The map uses DT_SC_FIX (< SC_BOUND), a deliberately conservative pick - see
+    # config.DELTA_T_SUBCOOL_K's comment (cold-end pinch margin at the condenser exit).
     print("\nSUBCOOL sweep    (superheat = %.0f K):" % DT_SH_FIX)
     for refr in REFRIGERANTS:
         cops, qs, tds = zip(*[_cop_q_tdis(refr, DT_SH_FIX, sc) for sc in SC_GRID])
         axR.plot(SC_GRID, cops, marker="o", color=config.REFRIGERANT_COLORS[refr], label=refr)
+        i_f = SC_GRID.index(int(DT_SC_FIX)) if int(DT_SC_FIX) in SC_GRID else None
         i_b = SC_GRID.index(int(SC_BOUND)) if int(SC_BOUND) in SC_GRID else None
-        d = 100 * (cops[i_b] / cops[0] - 1) if i_b is not None else float("nan")
-        print("  %-14s COP %.3f (sc=0) -> %.3f (sc=%g, the bound)  %+.1f%%"
-              % (refr, cops[0], cops[i_b], SC_BOUND, d))
-    axR.axvline(SC_BOUND, ls="--", c=config.COLOR_NEUTRAL)
+        d_f = 100 * (cops[i_f] / cops[0] - 1) if i_f is not None else float("nan")
+        d_b = 100 * (cops[i_b] / cops[0] - 1) if i_b is not None else float("nan")
+        print("  %-14s COP %.3f (sc=0) -> %.3f (sc=%g, FIXED)  %+.1f%%  -> %.3f (sc=%g, bound)  %+.1f%%"
+              % (refr, cops[0], cops[i_f], DT_SC_FIX, d_f, cops[i_b], SC_BOUND, d_b))
+    axR.axvline(DT_SC_FIX, ls="--", c=config.COLOR_NEUTRAL)
+    axR.annotate("fixed\n%.0f K" % DT_SC_FIX, (DT_SC_FIX, axR.get_ylim()[0]),
+                 textcoords="offset points", xytext=(4, 6), color=config.COLOR_NEUTRAL)
+    axR.axvline(SC_BOUND, ls=":", c=config.COLOR_NEUTRAL)
     axR.annotate("sink bound\nT_co-T_amb=%.0f K" % SC_BOUND, (SC_BOUND, axR.get_ylim()[0]),
                  textcoords="offset points", xytext=(4, 6), color=config.COLOR_NEUTRAL)
     axR.set_xlabel("subcooling  dT_sc  [K]"); axR.set_ylabel("COP_inner  [-]")
     axR.set_title("COP vs subcooling (monotone; take it to the bound)"); axR.legend(); axR.grid(alpha=.3)
 
     fig.tight_layout()
-    out = os.path.join(_REPO, "superheat_subcool_sweep.png")
-    fig.savefig(out, dpi=130)
+    os.makedirs(os.path.join(_REPO, "figures"), exist_ok=True)
+    out = os.path.join(_REPO, "figures", "superheat_subcool_sweep.png")
+    fig.savefig(out, dpi=400)
     print("\nFigure written to %s" % out)
 
 

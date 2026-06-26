@@ -19,7 +19,7 @@ iteration while developing): e.g.
 """
 import argparse
 import os
-from common import config, plotting
+from common import config, data_io, plotting
 from task3 import sweep
 
 
@@ -83,6 +83,11 @@ def main():
 
     R = results_by_design[(refrigerant, bore_mm)]
     label = "%s, %.0f mm" % (refrigerant, bore_mm)
+
+    os.makedirs("results", exist_ok=True)
+    for s in config.SEASONS:
+        data_io.save_season_result(R[s], os.path.join("results", "task3_%s.csv" % s))
+
     os.makedirs("figures", exist_ok=True)
     for s in config.SEASONS:
         plotting.plot_season(R[s], os.path.join("figures", "task3_%s.png" % s), label=label)
@@ -91,7 +96,8 @@ def main():
         df_compare[df_compare["error"].isna()], os.path.join("figures", "task3_comparison.png"),
         best=(refrigerant, bore_mm))
     print("Figures written to ./figures/ (task3_winter/spring/summer/fall, "
-          "task3_overview, task3_comparison)")
+          "task3_overview, task3_comparison)  (time-series cached to ./results/ "
+          "task3_<season>.csv for main_plots.py)")
 
     return results_by_design, df_ranked
 

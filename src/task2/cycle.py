@@ -32,12 +32,17 @@ Inner COP optimisation (lecture #3 standard form)
                          dT_sc <= T_co - T_amb  (sink bound; subcool only toward ambient)
                          p_co / p_ev >= 2       (compressor envelope; see clamp above)
                          T_dis <= T_dis,max     (discharge-temperature limit)
-    solution           : the optimum lies on the constraint boundaries, so the map is
-                         built at FIXED dT_sh, dT_sc (no per-point solver). Verified in
-                         analysis/superheat_subcool_sweep.py:
-                           dT_sc -> upper bound  T_co - T_amb : COP_inner is monotone
-                             increasing in subcool for all three refrigerants
-                             (+3.4..5.8 %). This is the dominant lever.
+    solution           : the optimum lies on (or near) the constraint boundaries, so the
+                         map is built at FIXED dT_sh, dT_sc (no per-point solver).
+                         Verified in analysis/superheat_subcool_sweep.py:
+                           dT_sc: COP_inner is monotone increasing in subcool for all
+                             three refrigerants, all the way to the sink bound
+                             T_co - T_amb (+3.4..5.8 % over the swept range). The map
+                             does NOT use that bound, though: DELTA_T_SUBCOOL_K = 5 K
+                             (config.py) is a deliberately conservative half-of-the-bound
+                             pick, leaving a physical cold-end pinch at the condenser
+                             exit rather than letting the liquid approach T_amb with
+                             zero margin.
                            dT_sh -> lower bound  dT_sh,min    : COP_inner is nearly flat
                              and refrigerant-dependent in sign (Propane/R1234yf +, DME -),
                              so the dry-suction minimum is chosen; it is within ~1-3 % of

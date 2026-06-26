@@ -44,11 +44,16 @@ def main():
                  r["ac_starts"], r["ac_min"], r["vent_starts"], r["vent_min"],
                  r["E_ac_kWh"], r["E_vent_kWh"], r["ac_fan_undersized_steps"]))
 
+    os.makedirs("results", exist_ok=True)
+    for s in config.SEASONS:
+        data_io.save_season_result(R[s], os.path.join("results", "task1_%s.csv" % s))
+
     os.makedirs("figures", exist_ok=True)
     for s in config.SEASONS:
         plotting.plot_season(R[s], os.path.join("figures", "task1_%s.png" % s))
     plotting.plot_overview(R, os.path.join("figures", "task1_overview.png"))
-    print("\nFigures written to ./figures/")
+    print("\nFigures written to ./figures/  (time-series cached to ./results/ "
+          "task1_<season>.csv for main_plots.py)")
     return R
 
 

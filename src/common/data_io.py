@@ -88,3 +88,31 @@ def load_all_performance_maps(refrigerants=None, bores=None, out_dir=None):
     bores = config.COMPRESSOR_BORES_MM if bores is None else bores
     return {(r, b): load_performance_map(r, b, out_dir)
             for r in refrigerants for b in bores}
+
+
+# Time-series columns of a task1.simulation.simulate_season() result dict
+# (the scalar summary fields -- T_min, E_ac_kWh, ... -- are cheap to recompute
+# from these and are not duplicated in the CSV).
+_SEASON_RESULT_COLUMNS = ["t", "T", "phi", "X", "T_dp", "mode", "Q_cool", "Q_AC",
+                          "Q_dem", "W_el", "W_comp", "W_fan", "COP_res"]
+
+
+def save_season_result(r, path):
+    """Persist one simulate_season() result's time-series to CSV, so
+    plotting.plot_season/plot_overview can be re-rendered later (main_plots.py)
+    without re-running the room simulation."""
+    df = pd.DataFrame({c: r[c] for c in _SEASON_RESULT_COLUMNS})
+    df.insert(0, "season", r["season"])
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    df.to_csv(path, index=False)
+    return path
+
+
+def load_season_result(path):
+    """Inverse of save_season_result(): rebuild the {time-series, season}
+    dict plot_season/plot_overview need from a saved CSV."""
+    df = pd.read_csv(path)
+    r = {c: df[c].to_numpy() for c in _SEASON_RESULT_COLUMNS}
+    r["mode"] = df["mode"].to_numpy(dtype=object)
+    r["season"] = str(df["season"].iloc[0])
+    return r

@@ -260,39 +260,49 @@ DAY_MIN = 24.0 * 60.0
 # --------------------------------------------------- Task 2 map output (I/O)
 PERFORMANCE_MAP_DIR = "results"   # precomputed (T_room,T_amb) AC maps, per (refrigerant, bore)
 
-# ------------------------------------------------------ Okabe-Ito colour scheme
-# Okabe-Ito colour-blind-safe palette (Okabe & Ito, 2008). Used consistently
-# across every plot in common/plotting.py and the Task-2 optimizer diagnostics
-# in task2/cycle_opt.py -- deliberately NOT a brand palette, chosen for
-# accessibility instead.
-OKABE_BLACK = "#000000"
-OKABE_ORANGE = "#E69F00"
-OKABE_SKY_BLUE = "#56B4E9"
-OKABE_BLUISH_GREEN = "#009E73"
-OKABE_YELLOW = "#F0E442"
-OKABE_BLUE = "#0072B2"
-OKABE_VERMILLION = "#D55E00"
-OKABE_REDDISH_PURPLE = "#CC79A7"
+# ------------------------------------------------------------ figure output
+# Single project-wide resolution for every saved figure (plotting.py reads
+# this instead of each function hardcoding its own dpi), so main_plots.py's
+# DPI knob actually controls all of them at once.
+FIGURE_DPI = 400
+
+# ------------------------------------------------------- ETH colour scheme
+# Both the categorical (qualitative) and continuous (sequential) palettes
+# below come from eth_colormaps -- one ETH-branded source of truth instead of
+# the old Okabe-Ito accessibility palette. Import first; both sections need it.
+from common import eth_colormaps
+
+# Qualitative (discrete: lines/bars/bands) palette -- eth_colormaps.ETH_QUAL,
+# used consistently across every plot in common/plotting.py. NOT for
+# contour/heatmap data; see the sequential colormaps below for that.
+ETH_QUAL_BLACK = eth_colormaps.ETH_QUAL["Black"]
+ETH_QUAL_BLUE = eth_colormaps.ETH_QUAL["Blue"]
+ETH_QUAL_PETROL = eth_colormaps.ETH_QUAL["Petrol"]
+ETH_QUAL_GREEN = eth_colormaps.ETH_QUAL["Green"]
+ETH_QUAL_GOLD = eth_colormaps.ETH_QUAL["Gold"]
+ETH_QUAL_RED = eth_colormaps.ETH_QUAL["Red"]
+ETH_QUAL_PURPLE = eth_colormaps.ETH_QUAL["Purple"]
+ETH_QUAL_GREY = eth_colormaps.ETH_QUAL["Grey"]
 
 # Semantic roles -- plotting.py reads what a colour MEANS, not a raw hex/
 # matplotlib name, so the mapping only has to be decided once, here.
-COLOR_ROOM_T = OKABE_BLUE
-COLOR_ROOM_RH = OKABE_REDDISH_PURPLE
-COLOR_AC = OKABE_BLUE                # compressor: duty cycle, energy, starts, cost
-COLOR_VENT = OKABE_BLUISH_GREEN      # ventilation/fan: duty cycle, energy, starts, cost
-COLOR_OFF = OKABE_BLACK              # neutral: OFF duty-cycle segment
-COLOR_SERVER_LOAD = OKABE_VERMILLION
-COLOR_COOLING_DELIVERED = OKABE_BLUE
-COLOR_RECOMMENDED_BAND = OKABE_BLUISH_GREEN   # comfort/target + hard-limit band shading (T only);
+COLOR_ROOM_T = ETH_QUAL_BLUE
+COLOR_ROOM_RH = ETH_QUAL_PURPLE
+COLOR_AC = ETH_QUAL_BLUE             # compressor: duty cycle, energy, starts, cost
+COLOR_VENT = ETH_QUAL_GREEN          # ventilation/fan: duty cycle, energy, starts, cost
+COLOR_OFF = ETH_QUAL_BLACK           # neutral: OFF duty-cycle segment
+COLOR_SERVER_LOAD = ETH_QUAL_RED
+COLOR_COOLING_DELIVERED = ETH_QUAL_BLUE
+COLOR_RECOMMENDED_BAND = ETH_QUAL_GREEN       # comfort/target + hard-limit band shading (T only);
                                                # allowable uses the same hue at ALPHA_ALLOWABLE_BAND
-COLOR_HUMIDITY_BAND = OKABE_REDDISH_PURPLE    # comfort/target + hard-limit band shading (RH, dew
+COLOR_HUMIDITY_BAND = ETH_QUAL_PURPLE         # comfort/target + hard-limit band shading (RH, dew
                                                # point) -- same hue family as COLOR_ROOM_RH
-COLOR_SETPOINT = OKABE_BLACK                  # cooling-OFF setpoint trace
-COLOR_SETPOINT_AC = OKABE_REDDISH_PURPLE      # AC-on setpoint trace (plot_season panel 1)
-COLOR_SETPOINT_VENT = OKABE_ORANGE            # VENT-on setpoint trace (plot_season panel 1)
-COLOR_SELECTED_DESIGN = OKABE_ORANGE          # Task-3-selected design highlight outline
-COLOR_NEUTRAL = OKABE_BLACK                   # reference lines, contour overlays, etc.
-COLOR_DEW_POINT = OKABE_SKY_BLUE              # dew point trace (band shading is COLOR_HUMIDITY_BAND)
+COLOR_SETPOINT = ETH_QUAL_BLACK               # cooling-OFF setpoint trace
+COLOR_SETPOINT_AC = ETH_QUAL_PURPLE           # AC-on setpoint trace (plot_season panel 1)
+COLOR_SETPOINT_VENT = ETH_QUAL_GOLD           # VENT-on setpoint trace (plot_season panel 1)
+COLOR_SELECTED_DESIGN = ETH_QUAL_GOLD         # Task-3-selected design highlight outline
+COLOR_NEUTRAL = ETH_QUAL_BLACK                # reference lines, contour overlays, etc.
+COLOR_DEW_POINT = ETH_QUAL_PETROL             # dew point trace (band shading is COLOR_HUMIDITY_BAND)
 
 # Recommended/allowable bands are nested: SAME hue, recommended drawn darker
 # (the narrower INNER comfort target) and allowable lighter (the wider OUTER
@@ -304,10 +314,21 @@ ALPHA_ALLOWABLE_BAND = 0.12
 
 # One colour per representative season-day (winter/spring/summer/fall),
 # shared across plot_overview and any other multi-season figure.
-SEASON_COLORS = {"winter": OKABE_BLUE, "spring": OKABE_BLUISH_GREEN,
-                 "summer": OKABE_VERMILLION, "fall": OKABE_ORANGE}
+SEASON_COLORS = {"winter": ETH_QUAL_BLUE, "spring": ETH_QUAL_GREEN,
+                 "summer": ETH_QUAL_RED, "fall": ETH_QUAL_GOLD}
 
 # One colour per refrigerant, shared across any figure comparing all three
 # (e.g. analysis/superheat_subcool_sweep.py).
-REFRIGERANT_COLORS = {"Propane": OKABE_BLUE, "R1234yf": OKABE_BLUISH_GREEN,
-                      "DimethylEther": OKABE_ORANGE}
+REFRIGERANT_COLORS = {"Propane": ETH_QUAL_BLUE, "R1234yf": ETH_QUAL_GREEN,
+                      "DimethylEther": ETH_QUAL_GOLD}
+
+# Extra categorical accent ("g2"): same value as ETH_QUAL_GOLD/WARM_GOLD --
+# referenced, not re-typed, so the three can't drift apart.
+GOLD2 = ETH_QUAL_GOLD
+
+# Sequential (continuous: contour/heatmap) colormaps -- the ONLY consumer is
+# plotting.py's Task-2 COP_inner / Q_AC_kW performance-map contour plots.
+# Multi-hue (viridis-style) rather than single-hue: better step
+# discriminability on the dense COP/Q_AC contours than a single-hue ramp gives.
+SEQUENTIAL_CMAP_Q_AC = eth_colormaps.cmaps["multi"]
+SEQUENTIAL_CMAP_COP = eth_colormaps.cmaps["warm"]

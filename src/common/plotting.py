@@ -8,19 +8,28 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Patch
-from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 import pandas as pd
-from common import config
+from common import config, eth_colormaps
+
+# Default line/category colour cycle for any plot below that doesn't pass an
+# explicit color= (the ones that do -- the vast majority -- read config.COLOR_*
+# / config.ETH_QUAL_* instead, which are themselves sourced from this same
+# palette; see config.py's "ETH colour scheme" section).
+eth_colormaps.set_eth_cycle()
 
 _MAP_LABELS = {"COP_inner": "$COP_{inner}$  [-]",
                "Q_AC_kW": "$\\dot{Q}_{AC}$  [kW]",
                "P_elec_kW": "$P_{elec}$  [kW]"}
 
-# Task-2 contour map colour scale: Okabe-Ito colour-blind-safe blue/
-# vermillion, replacing matplotlib's default "viridis".
-_TASK2_SEQUENTIAL = LinearSegmentedColormap.from_list(
-    "task2_sequential", [config.OKABE_BLUE, config.OKABE_BLUISH_GREEN, config.OKABE_YELLOW ])
+# Task-2 contour map colour scale: per-quantity ETH sequential colormaps,
+# replacing matplotlib's default "viridis". COP_inner and Q_AC_kW get their
+# own hue (config.py) so the two map types stay visually distinct; anything
+# else (e.g. P_elec_kW) falls back to the COP map's colour.
+_TASK2_SEQUENTIAL_BY_VALUE = {
+    "COP_inner": config.SEQUENTIAL_CMAP_COP,
+    "Q_AC_kW": config.SEQUENTIAL_CMAP_Q_AC,
+}
 
 
 def _setpoint_traces(r):
@@ -95,22 +104,24 @@ def plot_season(r, path, label=None):
     # the others (T, mode/power) on the left; flat indexing below unchanged
     ax = [ax2d[0, 0], ax2d[0, 1], ax2d[1, 1], ax2d[1, 0]]
 
-    # This figure uses its OWN arrangement of the Okabe-Ito palette (distinct
-    # from the project-wide config.COLOR_* mapping used by every other plot):
-    # one shared green for every comfort/allowable band (T, RH, DP alike);
-    # T line black, RH/DP/cooling-delivered lines blue, server load red
-    # (vermillion); AC/VENT setpoints and mode shading keep the original
-    # project colours (purple/orange setpoints, blue/black shading) so AC and
-    # VENT stay clearly distinct from each other and from the data lines.
-    _BAND = config.OKABE_BLUISH_GREEN
-    _T_LINE = config.OKABE_BLACK
+    # This figure uses its OWN arrangement of the ETH qualitative palette
+    # (distinct from the project-wide config.COLOR_* mapping used by every
+    # other plot), one colour per ROLE rather than per panel:
+    #   Blue   = the cooling system    -> AC setpoint line, AC spans, "cooling delivered"
+    #   Red    = the heat source       -> server load
+    #   Purple = ventilation           -> VENT setpoint line, VENT spans
+    #   Grey   = neutral "off" state   -> cooling-OFF line
+    #   Black  = the controlled variable -> room T
+    # (comfort/allowable bands stay a shared green, RH/DP data lines stay blue)
+    _BAND = config.ETH_QUAL_GREEN
+    _T_LINE = config.ETH_QUAL_BLACK
     _AC_SETPOINT, _VENT_SETPOINT, _OFF_SETPOINT = (
-        config.OKABE_REDDISH_PURPLE, config.OKABE_ORANGE, config.OKABE_BLACK)
-    _RH_LINE, _RH_BAND = config.OKABE_BLUE, _BAND
-    _DP_LINE, _DP_BAND = config.OKABE_BLUE, _BAND
+        config.ETH_QUAL_BLUE, config.ETH_QUAL_PURPLE, config.ETH_QUAL_GREY)
+    _RH_LINE, _RH_BAND = config.ETH_QUAL_BLUE, _BAND
+    _DP_LINE, _DP_BAND = config.ETH_QUAL_BLUE, _BAND
     _T_BAND = _BAND
-    _AC_SHADE, _VENT_SHADE = config.OKABE_BLUE, config.OKABE_BLACK
-    _LOAD_LINE, _COOL_LINE = config.OKABE_VERMILLION, config.OKABE_BLUE
+    _AC_SHADE, _VENT_SHADE = config.ETH_QUAL_BLUE, config.ETH_QUAL_PURPLE
+    _LOAD_LINE, _COOL_LINE = config.ETH_QUAL_RED, config.ETH_QUAL_BLUE
 
     # (1) room temperature: fixed comfort/safety envelopes + the THREE control
     # setpoints the run ACTUALLY used (cooling OFF / VENT on / AC on). The
@@ -187,7 +198,7 @@ def plot_season(r, path, label=None):
     ax[3].set_xlabel("time of day [h]"); ax[3].set_xlim(0, 24)
 
     fig.tight_layout()
-    fig.savefig(path, dpi=110)
+    fig.savefig(path, dpi=config.FIGURE_DPI)
     plt.close(fig)
 
 
@@ -235,7 +246,7 @@ def plot_overview(R, path, label=None):
     ax[2].set_ylabel("dew point [C]"); ax[2].set_ylim(_dlo - _dpad, _dhi + _dpad)
     ax[2].set_xlabel("time of day [h]"); ax[2].set_xlim(0, 24)
     ax[2].legend(loc="upper right", fontsize=8)
-    fig.tight_layout(); fig.savefig(path, dpi=110); plt.close(fig)
+    fig.tight_layout(); fig.savefig(path, dpi=config.FIGURE_DPI); plt.close(fig)
 
 
 # --------------------------------------------------------------- Task 2 maps
@@ -253,7 +264,8 @@ def visualize_performance_map(df_map, refrigerant, D_bore, value="COP_inner",
     if own_fig:
         fig, ax = plt.subplots(figsize=(6.5, 5))
 
-    cf = ax.contourf(X, Y, Z, levels=levels, cmap=_TASK2_SEQUENTIAL)
+    cmap = _TASK2_SEQUENTIAL_BY_VALUE.get(value, config.SEQUENTIAL_CMAP_COP)
+    cf = ax.contourf(X, Y, Z, levels=levels, cmap=cmap)
     ax.contour(X, Y, Z, levels=levels, colors=config.COLOR_NEUTRAL, linewidths=0.3, alpha=0.5)
     if show_points:
         ax.scatter(X, Y, s=6, facecolors="none", edgecolors=config.COLOR_NEUTRAL, linewidths=0.4)
@@ -265,7 +277,7 @@ def visualize_performance_map(df_map, refrigerant, D_bore, value="COP_inner",
         plt.colorbar(cf, ax=ax).set_label(_MAP_LABELS.get(value, value))
         if save:
             fig.tight_layout()
-            fig.savefig(f"perfmap_{refrigerant}_{D_bore:.0f}mm_{value}.png", dpi=150)
+            fig.savefig(f"perfmap_{refrigerant}_{D_bore:.0f}mm_{value}.png", dpi=config.FIGURE_DPI)
     return cf
 
 
@@ -292,7 +304,7 @@ def visualize_all_maps(maps, value="COP_inner", levels=12, save=False):
         row[0].set_ylabel("$T_{amb}$ [°C]")
     fig.colorbar(cf, ax=axes, label=_MAP_LABELS.get(value, value), shrink=0.85)
     if save:
-        fig.savefig(f"perfmap_grid_{value}.png", dpi=150, bbox_inches="tight")
+        fig.savefig(f"perfmap_grid_{value}.png", dpi=config.FIGURE_DPI, bbox_inches="tight")
     return fig
 
 
@@ -377,7 +389,7 @@ def plot_design_comparison_detailed(df_compare, path, best=None):
     fig.suptitle("Task 3 design comparison, detail (bronze outline = selected, "
                  "ordered by rank)")
     fig.tight_layout()
-    fig.savefig(path, dpi=110)
+    fig.savefig(path, dpi=config.FIGURE_DPI)
     plt.close(fig)
 
 
@@ -435,7 +447,7 @@ def plot_design_comparison(df_compare, path, best=None):
     ax[4].set_xticks(x); ax[4].set_xticklabels(labels, fontsize=8)
 
     fig.tight_layout()
-    fig.savefig(path, dpi=110)
+    fig.savefig(path, dpi=config.FIGURE_DPI)
     plt.close(fig)
 
 
@@ -473,7 +485,7 @@ def plot_cost_comparison(df_cost, path, best=None, dates=None):
     ax.set_title(title, fontsize=10)
     ax.legend(fontsize=9)
     fig.tight_layout()
-    fig.savefig(path, dpi=110, bbox_inches="tight")
+    fig.savefig(path, dpi=config.FIGURE_DPI, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -493,5 +505,5 @@ def plot_dayahead_prices(prices_by_season, path):
     ax.set_title("Real day-ahead electricity prices (ENTSO-E, BZN|CH)")
     ax.legend(fontsize=9)
     fig.tight_layout()
-    fig.savefig(path, dpi=110)
+    fig.savefig(path, dpi=config.FIGURE_DPI)
     plt.close(fig)
