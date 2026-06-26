@@ -351,29 +351,58 @@ def plot_design_comparison(df_compare, path, best=None):
     plt.close(fig)
 
 
-def plot_cost_comparison(df_cost, path, best=None):
-    """Task 4: stacked annual electricity cost (AC + ventilation) per
-    (refrigerant, bore) design. `best` = (refrigerant, bore_mm) to highlight
-    (orange outline); df_cost has one row per combo (see task4.economics)."""
+def plot_cost_comparison(df_cost, path, best=None, dates=None):
+    """Task 4: stacked electricity cost over the 4 representative days (AC +
+    ventilation) per (refrigerant, bore) design, costed against REAL day-ahead
+    prices (task4.economics). `best` = (refrigerant, bore_mm) to highlight
+    (bronze outline); df_cost has one row per combo. `dates` = {season: "DD/
+    MM/YYYY"} (data_io.load_dayahead_prices) -- shown in the subtitle so the
+    figure is traceable to the exact price data it used."""
     df = df_cost.sort_values(["refrigerant", "bore_mm"])
     labels = [f"{r}\n{b:.0f} mm" for r, b in zip(df["refrigerant"], df["bore_mm"])]
     is_best = [(r, b) == best for r, b in zip(df["refrigerant"], df["bore_mm"])]
     x = np.arange(len(df))
 
     fig, ax = plt.subplots(figsize=(max(7, 1.1 * len(df)), 5))
-    ax.bar(x, df["cost_ac_CHF_year"], color=config.COLOR_AC, label="AC")
-    ax.bar(x, df["cost_vent_CHF_year"], bottom=df["cost_ac_CHF_year"],
+    ax.bar(x, df["cost_ac_CHF"], color=config.COLOR_AC, label="AC")
+    ax.bar(x, df["cost_vent_CHF"], bottom=df["cost_ac_CHF"],
           color=config.COLOR_VENT, label="ventilation")
 
-    top = df["cost_total_CHF_year"].to_numpy(dtype=float)
+    top = df["cost_total_CHF"].to_numpy(dtype=float)
     for xi, b, t in zip(x, is_best, top):
         if b:
             ax.add_patch(Rectangle((xi - 0.5, 0), 1.0, t, fill=False,
                                    edgecolor=config.COLOR_SELECTED_DESIGN, linewidth=2, zorder=5))
 
     ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=8)
-    ax.set_ylabel("electricity cost  [CHF / year]")
-    ax.set_title("Task 4 design comparison (bronze outline = Task-3 selection)")
+    ax.set_ylabel("electricity cost  [CHF / 4 representative days]")
+    title = "Task 4 design comparison (bronze outline = Task-3 selection)"
+    if dates:
+        seasons = [s for s in config.SEASONS if s in dates]
+        line1 = ", ".join("%s %s" % (s, dates[s]) for s in seasons[:2])
+        line2 = ", ".join("%s %s" % (s, dates[s]) for s in seasons[2:])
+        title += "\nday-ahead prices: %s, %s" % (line1, line2)
+    ax.set_title(title, fontsize=10)
+    ax.legend(fontsize=9)
+    fig.tight_layout()
+    fig.savefig(path, dpi=110, bbox_inches="tight")
+    plt.close(fig)
+
+
+def plot_dayahead_prices(prices_by_season, path):
+    """Task 4: the real hourly day-ahead price curve used for each
+    representative season (common.data_io.load_dayahead_prices). Each
+    season's exact calendar date is in the legend, so the figure is
+    self-documenting about which real day it's costing against."""
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    for season in config.SEASONS:
+        d = prices_by_season[season]
+        ax.step(range(24), d["price_chf_per_kwh"], where="post",
+                color=config.SEASON_COLORS[season], lw=1.5,
+                label="%s (%s)" % (season, d["date"]))
+    ax.set_xlabel("hour of day [h]"); ax.set_ylabel("day-ahead price  [CHF/kWh]")
+    ax.set_xlim(0, 23); ax.set_xticks(range(0, 24, 2))
+    ax.set_title("Real day-ahead electricity prices (ENTSO-E, BZN|CH)")
     ax.legend(fontsize=9)
     fig.tight_layout()
     fig.savefig(path, dpi=110)

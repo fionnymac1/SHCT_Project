@@ -130,17 +130,28 @@ def run_all_designs(refrigerants=None, bores=None, verbose=True):
     return results_by_design, df_compare
 
 
-def save_energy_by_season(results_by_design, path=None):
-    """Long-form (refrigerant, bore_mm, season, E_ac_kWh, E_vent_kWh) table,
-    one row per (design, season) -- the per-season detail Task 4 needs for
-    season-specific electricity pricing, which the summed-over-all-seasons
-    df_compare/aggregate_metrics table above does not retain. Written
-    alongside the comparison CSV in main_task3.py."""
-    path = path or os.path.join("results", "task3_energy_by_season.csv")
-    rows = [{"refrigerant": refrigerant, "bore_mm": bore_mm, "season": season,
-             "E_ac_kWh": r["E_ac_kWh"], "E_vent_kWh": r["E_vent_kWh"]}
-            for (refrigerant, bore_mm), R in results_by_design.items()
-            for season, r in R.items()]
+def save_energy_by_hour(results_by_design, path=None):
+    """Long-form (refrigerant, bore_mm, season, hour, E_ac_kWh, E_vent_kWh)
+    table, one row per (design, season, hour-of-day) -- the resolution Task 4
+    needs to cost energy against REAL hourly day-ahead prices (data_io.
+    load_dayahead_prices), not a flat per-season rate. Built from each
+    simulate_season() result's per-step t/mode/W_el arrays. Written alongside
+    the comparison CSV in main_task3.py."""
+    path = path or os.path.join("results", "task3_energy_by_hour.csv")
+    dt_h = config.TIME_STEP_MIN / 60.0
+    rows = []
+    for (refrigerant, bore_mm), R in results_by_design.items():
+        for season, r in R.items():
+            hour = (r["t"] // 60).astype(int) % 24
+            is_ac = (r["mode"] == "AC")
+            is_vent = (r["mode"] == "VENT")
+            for h in range(24):
+                sel = hour == h
+                rows.append({
+                    "refrigerant": refrigerant, "bore_mm": bore_mm, "season": season, "hour": h,
+                    "E_ac_kWh": float(np.sum(r["W_el"][sel & is_ac]) * dt_h),
+                    "E_vent_kWh": float(np.sum(r["W_el"][sel & is_vent]) * dt_h),
+                })
     df = pd.DataFrame(rows)
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     df.to_csv(path, index=False)

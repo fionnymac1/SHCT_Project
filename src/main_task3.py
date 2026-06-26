@@ -57,8 +57,8 @@ def main():
     out_csv = os.path.join("results", "task3_design_comparison.csv")
     df_ranked.to_csv(out_csv, index=False)
 
-    season_csv = sweep.save_energy_by_season(results_by_design)
-    print("Per-season energy breakdown written to %s (Task 4 input)" % season_csv)
+    hour_csv = sweep.save_energy_by_hour(results_by_design)
+    print("Per-hour energy breakdown written to %s (Task 4 input)" % hour_csv)
 
     hdr = ("rank refrigerant   bore | T rec T allow  Tmin Tmax | RH rec RH allow "
            "RHmin RHmax | AC starts AC-min | E_tot kWh")

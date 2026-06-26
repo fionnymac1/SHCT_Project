@@ -46,6 +46,23 @@ def diurnal_check(series):
     return int(np.argmin(series)), int(np.argmax(series))
 
 
+def load_dayahead_prices():
+    """Read the four ENTSO-E day-ahead price exports (one real calendar day per
+    representative season, Swiss bidding zone BZN|CH, EUR/MWh, hourly) named in
+    config.FILE_DAYAHEAD_PRICES. Converts to CHF/kWh via config.EUR_TO_CHF.
+
+    Returns {season: {"date": "DD/MM/YYYY", "price_chf_per_kwh": array of 24
+    hourly prices, hour 0 first}} -- Task 4's real (not flat-assumed) tariff."""
+    out = {}
+    for season, path in config.FILE_DAYAHEAD_PRICES.items():
+        df = pd.read_csv(path)
+        date = df["MTU (CET/CEST)"].iloc[0].split(" ")[0]   # "DD/MM/YYYY" of hour 0
+        price_eur_mwh = df["Day-ahead Price (EUR/MWh)"].to_numpy(dtype=float)
+        price_chf_kwh = price_eur_mwh / 1000.0 * config.EUR_TO_CHF
+        out[season] = {"date": date, "price_chf_per_kwh": price_chf_kwh}
+    return out
+
+
 def _map_path(refrigerant, bore_mm, out_dir=None):
     out_dir = config.PERFORMANCE_MAP_DIR if out_dir is None else out_dir
     return os.path.join(out_dir, "ac_map_{}_{:.0f}mm.csv".format(refrigerant, bore_mm))
