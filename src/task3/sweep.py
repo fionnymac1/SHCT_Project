@@ -130,6 +130,23 @@ def run_all_designs(refrigerants=None, bores=None, verbose=True):
     return results_by_design, df_compare
 
 
+def save_energy_by_season(results_by_design, path=None):
+    """Long-form (refrigerant, bore_mm, season, E_ac_kWh, E_vent_kWh) table,
+    one row per (design, season) -- the per-season detail Task 4 needs for
+    season-specific electricity pricing, which the summed-over-all-seasons
+    df_compare/aggregate_metrics table above does not retain. Written
+    alongside the comparison CSV in main_task3.py."""
+    path = path or os.path.join("results", "task3_energy_by_season.csv")
+    rows = [{"refrigerant": refrigerant, "bore_mm": bore_mm, "season": season,
+             "E_ac_kWh": r["E_ac_kWh"], "E_vent_kWh": r["E_vent_kWh"]}
+            for (refrigerant, bore_mm), R in results_by_design.items()
+            for season, r in R.items()]
+    df = pd.DataFrame(rows)
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    df.to_csv(path, index=False)
+    return path
+
+
 def score_key(row):
     """Lexicographic ranking key (smaller = better), per the task sheet's
     selection criteria in priority order:
