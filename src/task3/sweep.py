@@ -46,8 +46,8 @@ def aggregate_metrics(refrigerant, bore_mm, R, seasons=None):
         "refrigerant": refrigerant, "bore_mm": bore_mm,
         "frac_T_recommended": float(np.mean([R[s]["frac_T_recommended"] for s in seasons])),
         "frac_T_allowable": float(np.mean([R[s]["frac_T_allowable"] for s in seasons])),
-        "frac_phi_recommended": float(np.mean([R[s]["frac_phi_recommended"] for s in seasons])),
         "frac_phi_allowable": float(np.mean([R[s]["frac_phi_allowable"] for s in seasons])),
+        "frac_dp_recommended": float(np.mean([R[s]["frac_dp_recommended"] for s in seasons])),
         "frac_dp_allowable": float(np.mean([R[s]["frac_dp_allowable"] for s in seasons])),
         "T_min": float(min(R[s]["T_min"] for s in seasons)),
         "T_max": float(max(R[s]["T_max"] for s in seasons)),
@@ -170,13 +170,15 @@ def score_key(row):
          breach here is a hardware-safety failure, worse than merely missing
          comfort);
       2. room air condition, comfort target: maximise time within the
-         RECOMMENDED T band (the day-to-day operating goal);
+         RECOMMENDED T and dew-point bands (the day-to-day operating goal;
+         RH has no recommended target, only the allowable bound above);
       3. overall energy demand: minimise total AC + ventilation electricity;
       4. compressor start/stop cycles: minimise AC starts (mechanical wear).
     Operating times (ac_min/vent_min) are reported alongside for discussion
     but not separately scored (largely implied by (1)/(2)/(3))."""
     return (-min(row["frac_T_allowable"], row["frac_phi_allowable"], row["frac_dp_allowable"]),
-            -row["frac_T_recommended"], row["E_total_kWh"], row["ac_starts_total"])
+            -min(row["frac_T_recommended"], row["frac_dp_recommended"]),
+            row["E_total_kWh"], row["ac_starts_total"])
 
 
 def rank(df_compare):

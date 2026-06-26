@@ -54,19 +54,20 @@ T_BAND_LOW_C = T_RECOMMENDED_LOW_C
 T_BAND_HIGH_C = T_RECOMMENDED_HIGH_C
 
 # Humidity is MONITORED, not controlled (no (de)humidifier actuator). The
-# binding risk is the LOWER bound: AC condensation dries the room.
-PHI_RECOMMENDED_LOW = 0.30   # comfort/target band lower
-PHI_RECOMMENDED_HIGH = 0.70  # comfort/target band upper
+# binding risk is the LOWER bound: AC condensation dries the room. Allowable
+# only -- no separate recommended target (dew point carries the comfort
+# target instead, see below).
 PHI_ALLOW_LOW = 0.08         # hard lower limit
 PHI_ALLOW_HIGH = 0.80        # hard upper limit
 
-# Dew point: hard allowable band only (no separate recommended target given).
-# [ASSUMPTION] rationale not specified alongside the values -- these read as
-# the same family of limit as ASHRAE TC9.9's data-centre allowable envelope
-# (condensation risk above the upper bound, electrostatic-discharge/static
-# risk below the lower bound), matching how T_RECOMMENDED/PHI_ALLOW are
-# sourced elsewhere in this file. Computed from X via room.dew_point_C
-# (Magnus-Tetens formula).
+# Dew point: both bands. [ASSUMPTION] rationale not specified alongside the
+# values -- these read as the same family of limit as ASHRAE TC9.9's
+# data-centre envelopes (condensation risk above the upper bound,
+# electrostatic-discharge/static risk below the lower bound), matching how
+# T_RECOMMENDED/PHI_ALLOW are sourced elsewhere in this file. Computed from X
+# via room.dew_point_C (Magnus-Tetens formula).
+DP_RECOMMENDED_LOW_C = -9.0
+DP_RECOMMENDED_HIGH_C = 15.0
 DP_ALLOW_LOW_C = -9.0
 DP_ALLOW_HIGH_C = 17.0
 
@@ -282,20 +283,22 @@ COLOR_VENT = OKABE_BLUISH_GREEN      # ventilation/fan: duty cycle, energy, star
 COLOR_OFF = OKABE_BLACK              # neutral: OFF duty-cycle segment
 COLOR_SERVER_LOAD = OKABE_VERMILLION
 COLOR_COOLING_DELIVERED = OKABE_BLUE
-COLOR_RECOMMENDED_BAND = OKABE_BLUISH_GREEN   # comfort/target + hard-limit band shading (T and RH);
+COLOR_RECOMMENDED_BAND = OKABE_BLUISH_GREEN   # comfort/target + hard-limit band shading (T only);
                                                # allowable uses the same hue at ALPHA_ALLOWABLE_BAND
+COLOR_HUMIDITY_BAND = OKABE_REDDISH_PURPLE    # comfort/target + hard-limit band shading (RH, dew
+                                               # point) -- same hue family as COLOR_ROOM_RH
 COLOR_SETPOINT = OKABE_BLACK                  # cooling-OFF setpoint trace
 COLOR_SETPOINT_AC = OKABE_REDDISH_PURPLE      # AC-on setpoint trace (plot_season panel 1)
 COLOR_SETPOINT_VENT = OKABE_ORANGE            # VENT-on setpoint trace (plot_season panel 1)
 COLOR_SELECTED_DESIGN = OKABE_ORANGE          # Task-3-selected design highlight outline
 COLOR_NEUTRAL = OKABE_BLACK                   # reference lines, contour overlays, etc.
-COLOR_DEW_POINT = OKABE_SKY_BLUE              # dew point trace + its allowable band
+COLOR_DEW_POINT = OKABE_SKY_BLUE              # dew point trace (band shading is COLOR_HUMIDITY_BAND)
 
 # Recommended/allowable bands are nested: SAME hue, recommended drawn darker
 # (the narrower INNER comfort target) and allowable lighter (the wider OUTER
-# band) -- not two different colours. Applies to any quantity with both a
-# recommended and an allowable band (T, RH); dew point has only the (lighter)
-# allowable band.
+# band) -- not two different colours. T uses COLOR_RECOMMENDED_BAND (both
+# bands); RH and dew point use COLOR_HUMIDITY_BAND (RH: allowable only, no
+# recommended target; dew point: both bands).
 ALPHA_RECOMMENDED_BAND = 0.35
 ALPHA_ALLOWABLE_BAND = 0.12
 

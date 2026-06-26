@@ -161,10 +161,10 @@ def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WCOMP, WFAN, COPR):
                                   (T <= config.T_RECOMMENDED_HIGH_C))
     frac_T_allowable = np.mean((T >= config.T_ALLOW_LOW_C) &
                                 (T <= config.T_ALLOW_HIGH_C))
-    frac_phi_recommended = np.mean((PHI >= config.PHI_RECOMMENDED_LOW) &
-                                    (PHI <= config.PHI_RECOMMENDED_HIGH))
     frac_phi_allowable = np.mean((PHI >= config.PHI_ALLOW_LOW) &
                                   (PHI <= config.PHI_ALLOW_HIGH))
+    frac_dp_recommended = np.mean((DP >= config.DP_RECOMMENDED_LOW_C) &
+                                   (DP <= config.DP_RECOMMENDED_HIGH_C))
     frac_dp_allowable = np.mean((DP >= config.DP_ALLOW_LOW_C) &
                                  (DP <= config.DP_ALLOW_HIGH_C))
     return {
@@ -176,8 +176,8 @@ def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WCOMP, WFAN, COPR):
         "dp_min": float(DP.min()), "dp_max": float(DP.max()),
         "frac_T_recommended": float(frac_T_recommended),
         "frac_T_allowable": float(frac_T_allowable),
-        "frac_phi_recommended": float(frac_phi_recommended),
         "frac_phi_allowable": float(frac_phi_allowable),
+        "frac_dp_recommended": float(frac_dp_recommended),
         "frac_dp_allowable": float(frac_dp_allowable),
         "ac_starts": _count_starts(MODE, "AC"),
         "vent_starts": _count_starts(MODE, "VENT"),

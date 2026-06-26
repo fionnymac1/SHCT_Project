@@ -27,12 +27,15 @@ def main_single(refrigerant, bore_mm, season):
     print("Single run: %s, %.0f mm, %s day" % (refrigerant, bore_mm, season))
     r, metrics = sweep.run_single_day(refrigerant, bore_mm, season)
     print("T rec %5.1f%%  T allow %5.1f%%  Tmin %4.1f  Tmax %4.1f  "
-          "RH rec %5.1f%%  RH allow %5.1f%%  RHmin %3.0f%%  RHmax %3.0f%%  "
+          "RH allow %5.1f%%  RHmin %3.0f%%  RHmax %3.0f%%  "
+          "DP rec %5.1f%%  DP allow %5.1f%%  DPmin %5.1f  DPmax %5.1f  "
           "AC starts %d  AC-min %.0f  E_tot %.2f kWh"
           % (100 * metrics["frac_T_recommended"], 100 * metrics["frac_T_allowable"],
              metrics["T_min"], metrics["T_max"],
-             100 * metrics["frac_phi_recommended"], 100 * metrics["frac_phi_allowable"],
+             100 * metrics["frac_phi_allowable"],
              100 * metrics["phi_min"], 100 * metrics["phi_max"],
+             100 * metrics["frac_dp_recommended"], 100 * metrics["frac_dp_allowable"],
+             metrics["dp_min"], metrics["dp_max"],
              metrics["ac_starts_total"], metrics["ac_min_total"],
              metrics["E_total_kWh"]))
     path = sweep.visualize_single_day(r, refrigerant, bore_mm)
@@ -60,17 +63,18 @@ def main():
     hour_csv = sweep.save_energy_by_hour(results_by_design)
     print("Per-hour energy breakdown written to %s (Task 4 input)" % hour_csv)
 
-    hdr = ("rank refrigerant   bore | T rec T allow  Tmin Tmax | RH rec RH allow "
-           "RHmin RHmax | AC starts AC-min | E_tot kWh")
+    hdr = ("rank refrigerant   bore | T rec T allow  Tmin Tmax | RH allow RHmin RHmax "
+           "| DP rec DP allow DPmin DPmax | AC starts AC-min | E_tot kWh")
     print("\n" + hdr); print("-" * len(hdr))
     for _, r in df_ranked.iterrows():
-        print("%4d %-13s %4.0fmm | %5.1f%% %7.1f%% %4.1f %4.1f | %6.1f%% %8.1f%% "
-              "%4.0f%% %4.0f%% | %9d %6.0f | %9.2f"
+        print("%4d %-13s %4.0fmm | %5.1f%% %7.1f%% %4.1f %4.1f | %7.1f%% %4.0f%% %4.0f%% "
+              "| %5.1f%% %7.1f%% %5.1f %5.1f | %9d %6.0f | %9.2f"
               % (r["rank"], r["refrigerant"], r["bore_mm"],
                  100 * r["frac_T_recommended"], 100 * r["frac_T_allowable"],
                  r["T_min"], r["T_max"],
-                 100 * r["frac_phi_recommended"], 100 * r["frac_phi_allowable"],
-                 100 * r["phi_min"], 100 * r["phi_max"],
+                 100 * r["frac_phi_allowable"], 100 * r["phi_min"], 100 * r["phi_max"],
+                 100 * r["frac_dp_recommended"], 100 * r["frac_dp_allowable"],
+                 r["dp_min"], r["dp_max"],
                  r["ac_starts_total"], r["ac_min_total"], r["E_total_kWh"]))
     print("\nComparison table written to %s" % out_csv)
 
