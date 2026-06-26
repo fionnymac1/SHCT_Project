@@ -42,6 +42,8 @@ import numpy as np
 import matplotlib
 matplotlib.use("Agg")          # headless: write a PNG, do not require a display
 import matplotlib.pyplot as plt
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.patches import Patch, Rectangle
 from scipy.optimize import minimize, NonlinearConstraint
 from common import config, Fluid_CP as FCP, compressor_model as comp
 
@@ -168,45 +170,68 @@ def load_pinch_grid(path):
         return {k: z[k] for k in z.files}
 
 
+_ETH_DIVERGING = LinearSegmentedColormap.from_list(
+    "eth_diverging", [config.ETH_BLUE, "white", config.ETH_RED])
+
+
 def plot_pinch_check(grid, path):
     """3-panel figure over the (T_amb, T_room) plane: how far the SLSQP optimum's
     T_ev/T_co sit from the pinch-floor prediction, and the resulting COP gap
-    against cycle.cycle_point. Deviation should be ~0 everywhere except the
-    corner where the compressor's minimum pressure-ratio envelope (Pi = p_co/p_ev
-    >= MIN_PRESSURE_RATIO) binds instead of the two approach floors."""
+    against cycle.cycle_point. Deviation should be ~0 everywhere except where
+    the hatched region marks the compressor's minimum pressure-ratio envelope
+    (p_co/p_ev >= MIN_PRESSURE_RATIO) binding instead of the two approach floors."""
     Tr, Ta = grid["T_room_grid"], grid["T_amb_grid"]
     dEv = grid["T_ev_opt"] - (Tr[:, None] - config.DT_APPROACH_EVAP_K)
     dCo = grid["T_co_opt"] - (Ta[None, :] + config.DT_APPROACH_COND_K)
     dCOP = grid["COP_opt"] - grid["COP_cyclepoint"]
     at_floor = grid["at_floor"].astype(float)
 
-    plt.rcParams.update({"font.size": 11, "axes.titlesize": 12, "figure.facecolor": "white"})
+    plt.rcParams.update({"font.size": 11, "axes.titlesize": 12, "figure.facecolor": "white",
+                         "hatch.color": "0.3"})
     fig, ax = plt.subplots(1, 3, figsize=(16, 4.8), constrained_layout=True)
-    extent = [Ta.min(), Ta.max(), Tr.min(), Tr.max()]
-    panels = [(dEv, "(a)  T_ev shift from assumed floor  [K]", "coolwarm"),
-              (dCo, "(b)  T_co shift from assumed floor  [K]", "coolwarm"),
-              (dCOP, "(c)  COP gap: true optimum − map value  [–]", "PuOr")]
-    for a, (data, title, cmap) in zip(ax, panels):
+    panels = [(dEv, "(a)  T_ev shift  [K]"),
+              (dCo, "(b)  T_co shift  [K]"),
+              (dCOP, "(c)  COP gap  [–]")]
+    # Explicit Rectangle per clamped cell, edges computed from the same grid
+    # pcolormesh(shading="nearest") uses internally -- guarantees both correct
+    # alignment (no contourf-style interpolation gaps at the domain edges) and
+    # reliable hatch rendering (QuadMesh/pcolormesh hatch-on-transparent-face
+    # silently fails to draw on this matplotlib/backend combo; Rectangle
+    # patches render hatches reliably).
+    def _cell_edges(centers):
+        c = np.asarray(centers, dtype=float)
+        mid = (c[:-1] + c[1:]) / 2.0
+        return np.concatenate([[c[0] - (mid[0] - c[0])], mid, [c[-1] + (c[-1] - mid[-1])]])
+    ta_edges, tr_edges = _cell_edges(Ta), _cell_edges(Tr)
+    clamped_ij = np.argwhere(~grid["at_floor"].astype(bool))
+
+    for a, (data, title) in zip(ax, panels):
         vmax = max(float(np.max(np.abs(data))), 1e-6)
-        im = a.pcolormesh(Ta, Tr, data, shading="nearest", cmap=cmap,
+        im = a.pcolormesh(Ta, Tr, data, shading="nearest", cmap=_ETH_DIVERGING,
                           vmin=-vmax, vmax=vmax, edgecolors="0.85", linewidth=0.4)
-        a.contour(Ta, Tr, at_floor, levels=[0.5], colors="0.15",
-                  linewidths=1.4, linestyles="--")
+        for i, j in clamped_ij:
+            a.add_patch(Rectangle((ta_edges[j], tr_edges[i]),
+                                  ta_edges[j + 1] - ta_edges[j], tr_edges[i + 1] - tr_edges[i],
+                                  facecolor="none", edgecolor="0.3", linewidth=0.0,
+                                  hatch="//", zorder=3))
         a.set_xlabel("$T_{amb}$  [°C]"); a.set_ylabel("$T_{room}$  [°C]")
         a.set_title(title)
-        cb = fig.colorbar(im, ax=a, shrink=0.9)
-        cb.outline.set_linewidth(0.5)
+        fig.colorbar(im, ax=a, shrink=0.9)
 
     worst = np.unravel_index(np.argmax(dCOP), dCOP.shape)
     ax[2].plot(Ta[worst[1]], Tr[worst[0]], marker="*", color="black",
-              markersize=14, markeredgecolor="white", markeredgewidth=0.8)
+              markersize=15, markeredgecolor="white", markeredgewidth=1.0, zorder=6)
     ax[2].annotate("worst case\n+%.2f (%.0f%%)" % (dCOP[worst], 100*dCOP[worst]/grid["COP_cyclepoint"][worst]),
                    (Ta[worst[1]], Tr[worst[0]]), textcoords="offset points",
-                   xytext=(8, -14), fontsize=9)
+                   xytext=(10, -16), fontsize=9, fontweight="bold",
+                   bbox=dict(boxstyle="round,pad=0.25", facecolor="white",
+                            edgecolor="0.3", alpha=0.9), zorder=7)
 
-    fig.suptitle("True SLSQP optimum vs. the constant-approach (pinch-floor) cycle\n"
-                 "dashed line = boundary of the minimum-pressure-ratio (compressor envelope) regime",
-                 fontsize=12)
+    hatch_proxy = Patch(facecolor="white", edgecolor="0.3", hatch="//",
+                        label="min. pressure-ratio limit active (floor prediction breaks down)")
+    fig.legend(handles=[hatch_proxy], loc="lower center", bbox_to_anchor=(0.5, -0.06),
+              frameon=False, fontsize=10)
+    fig.suptitle("Optimizer vs. constant-approach cycle", fontsize=13)
     fig.savefig(path, dpi=160, bbox_inches="tight")
     return fig
 

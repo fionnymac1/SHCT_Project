@@ -208,6 +208,34 @@ PART_LOAD_B = 0.1
 # ---------------------------------------------------------- ventilation
 VENT_AMBIENT_PHI = 0.60      # ambient air is 60 % RH (brief)
 
+# --------------------------------------------------------- Task 4 economics
+# Real day-ahead electricity prices (ENTSO-E Transparency Platform, Swiss
+# bidding zone BZN|CH, EUR/MWh, hourly), one real calendar day per
+# representative season -- NOT a flat assumed tariff. Each file's date is
+# read back from its own MTU column (see data_io.load_dayahead_prices); the
+# mapping below only has to say which file goes with which season.
+FILE_DAYAHEAD_PRICES = {
+    "winter": "data/GUI_ENERGY_PRICES_202512112300-202512122300.csv",
+    "spring": "data/GUI_ENERGY_PRICES_202603112300-202603122300.csv",
+    "summer": "data/GUI_ENERGY_PRICES_202606112200-202606122200.csv",
+    "fall": "data/GUI_ENERGY_PRICES_202509112200-202509122200.csv",
+}
+# [ASSUMPTION] EUR->CHF spot conversion (ballpark 2025/26 rate; the day-ahead
+# files are EUR/MWh). Revisit with the actual rate on each price date for a
+# tighter number.
+EUR_TO_CHF = 0.95
+
+# [ASSUMPTION] combined compressor motor + drive efficiency, converting the
+# compressor model's FLUID/shaft power (W = m_dot*(h2-h1), from
+# recip_comp_corr_SP -- see notes/Compressor_Model_Bridge.md, point P7) to the
+# electrical power actually billed:  P_elec = P_fluid / ETA_MOTOR_ELEC.
+# The course's Ex.6 simplification is ETA_MOTOR_ELEC = 1.0 (P_elec ~= P_fluid);
+# we instead own a realistic combined hermetic-motor + drive efficiency for a
+# small reciprocating unit. Set to 1.0 to fall back to the course shortcut.
+# The ventilation fan's power (FAN_SPECIFIC_POWER_KW_PER_M3S in task1.simulation)
+# is already an electrical stand-in -- it is NOT divided by this.
+ETA_MOTOR_ELEC = 0.90
+
 # ---------------------------------------------------------- input data
 SEASONS = ["winter", "spring", "summer", "fall"]
 FILE_AMBIENT = {s: "data/ambient_temperature_{}.txt".format(s) for s in SEASONS}
@@ -220,3 +248,44 @@ DAY_MIN = 24.0 * 60.0
 
 # --------------------------------------------------- Task 2 map output (I/O)
 PERFORMANCE_MAP_DIR = "results"   # precomputed (T_room,T_amb) AC maps, per (refrigerant, bore)
+
+# --------------------------------------------------------- ETH colour scheme
+# ETH Zurich corporate identity palette. Used consistently across every plot
+# in common/plotting.py and the Task-2 optimizer diagnostics in
+# task2/cycle_opt.py (the diverging map there is ETH Blue <-> white <-> ETH
+# Red, replacing an earlier colour-blind-safe Okabe-Ito choice for brand
+# consistency -- NB this trades away that specific accessibility property).
+ETH_BLUE = "#215CAF"
+ETH_PETROL = "#007894"
+ETH_GREEN = "#627313"
+ETH_BRONZE = "#8E6713"
+ETH_RED = "#B7352D"
+ETH_PURPLE = "#A7117A"
+ETH_GREY = "#6F6F6F"
+
+# Semantic roles -- plotting.py reads what a colour MEANS, not a raw hex/
+# matplotlib name, so the mapping only has to be decided once, here.
+COLOR_ROOM_T = ETH_BLUE
+COLOR_ROOM_RH = ETH_PURPLE
+COLOR_HUMIDITY_RATIO = ETH_PETROL
+COLOR_AC = ETH_BLUE                  # compressor: duty cycle, energy, starts, cost
+COLOR_VENT = ETH_GREEN               # ventilation/fan: duty cycle, energy, starts, cost
+COLOR_OFF = ETH_GREY                 # neutral: OFF duty-cycle segment
+COLOR_SERVER_LOAD = ETH_RED
+COLOR_COOLING_DELIVERED = ETH_BLUE
+COLOR_RECOMMENDED_BAND = ETH_GREEN   # comfort/target band shading (T and RH)
+COLOR_ALLOWABLE_LIMIT = ETH_RED      # hard safety-limit lines (T and RH)
+COLOR_SETPOINT = ETH_GREY            # cooling-OFF setpoint trace
+COLOR_SETPOINT_AC = ETH_PURPLE       # AC-on setpoint trace (plot_season panel 1)
+COLOR_SETPOINT_VENT = ETH_BRONZE     # VENT-on setpoint trace (plot_season panel 1)
+COLOR_SELECTED_DESIGN = ETH_BRONZE   # Task-3-selected design highlight outline
+COLOR_NEUTRAL = ETH_GREY             # reference lines, contour overlays, etc.
+
+# One colour per representative season-day (winter/spring/summer/fall),
+# shared across plot_overview and any other multi-season figure.
+SEASON_COLORS = {"winter": ETH_BLUE, "spring": ETH_GREEN,
+                 "summer": ETH_RED, "fall": ETH_BRONZE}
+
+# One colour per refrigerant, shared across any figure comparing all three
+# (e.g. analysis/superheat_subcool_sweep.py).
+REFRIGERANT_COLORS = {"Propane": ETH_BLUE, "R1234yf": ETH_GREEN, "DimethylEther": ETH_BRONZE}

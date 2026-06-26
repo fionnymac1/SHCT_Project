@@ -57,6 +57,9 @@ def main():
     out_csv = os.path.join("results", "task3_design_comparison.csv")
     df_ranked.to_csv(out_csv, index=False)
 
+    hour_csv = sweep.save_energy_by_hour(results_by_design)
+    print("Per-hour energy breakdown written to %s (Task 4 input)" % hour_csv)
+
     hdr = ("rank refrigerant   bore | T rec T allow  Tmin Tmax | RH rec RH allow "
            "RHmin RHmax | AC starts AC-min | E_tot kWh")
     print("\n" + hdr); print("-" * len(hdr))
@@ -79,7 +82,7 @@ def main():
     os.makedirs("figures", exist_ok=True)
     for s in config.SEASONS:
         plotting.plot_season(R[s], os.path.join("figures", "task3_%s.png" % s), label=label)
-    plotting.plot_overview(R, os.path.join("figures", "task3_overview.png"))
+    plotting.plot_overview(R, os.path.join("figures", "task3_overview.png"), label=label)
     plotting.plot_design_comparison(
         df_compare[df_compare["error"].isna()], os.path.join("figures", "task3_comparison.png"),
         best=(refrigerant, bore_mm))

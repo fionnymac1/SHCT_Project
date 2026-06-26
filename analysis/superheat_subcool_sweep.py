@@ -68,13 +68,13 @@ def main():
     print("SUPERHEAT sweep  (subcool = %.0f K):" % SC_BOUND)
     for refr in REFRIGERANTS:
         cops, qs, tds = zip(*[_cop_q_tdis(refr, sh, SC_BOUND) for sh in SH_GRID])
-        axL.plot(SH_GRID, cops, marker="o", label=refr)
+        axL.plot(SH_GRID, cops, marker="o", color=config.REFRIGERANT_COLORS[refr], label=refr)
         d = 100 * (cops[-1] / cops[0] - 1)
         print("  %-14s COP %.3f->%.3f (%+.1f%% over %g-%g K) | T_dis %.0f->%.0f C"
               % (refr, cops[0], cops[-1], d, SH_GRID[0], SH_GRID[-1], tds[0], tds[-1]))
-    axL.axvline(DT_SH_FIX, ls="--", c="0.5")
+    axL.axvline(DT_SH_FIX, ls="--", c=config.COLOR_NEUTRAL)
     axL.annotate("fixed\n%.0f K" % DT_SH_FIX, (DT_SH_FIX, axL.get_ylim()[0]),
-                 textcoords="offset points", xytext=(4, 6), color="0.4")
+                 textcoords="offset points", xytext=(4, 6), color=config.COLOR_NEUTRAL)
     axL.set_xlabel("superheat  dT_sh  [K]"); axL.set_ylabel("COP_inner  [-]")
     axL.set_title("COP vs superheat (sign is fluid-dependent)"); axL.legend(); axL.grid(alpha=.3)
 
@@ -82,14 +82,14 @@ def main():
     print("\nSUBCOOL sweep    (superheat = %.0f K):" % DT_SH_FIX)
     for refr in REFRIGERANTS:
         cops, qs, tds = zip(*[_cop_q_tdis(refr, DT_SH_FIX, sc) for sc in SC_GRID])
-        axR.plot(SC_GRID, cops, marker="o", label=refr)
+        axR.plot(SC_GRID, cops, marker="o", color=config.REFRIGERANT_COLORS[refr], label=refr)
         i_b = SC_GRID.index(int(SC_BOUND)) if int(SC_BOUND) in SC_GRID else None
         d = 100 * (cops[i_b] / cops[0] - 1) if i_b is not None else float("nan")
         print("  %-14s COP %.3f (sc=0) -> %.3f (sc=%g, the bound)  %+.1f%%"
               % (refr, cops[0], cops[i_b], SC_BOUND, d))
-    axR.axvline(SC_BOUND, ls="--", c="0.5")
+    axR.axvline(SC_BOUND, ls="--", c=config.COLOR_NEUTRAL)
     axR.annotate("sink bound\nT_co-T_amb=%.0f K" % SC_BOUND, (SC_BOUND, axR.get_ylim()[0]),
-                 textcoords="offset points", xytext=(4, 6), color="0.4")
+                 textcoords="offset points", xytext=(4, 6), color=config.COLOR_NEUTRAL)
     axR.set_xlabel("subcooling  dT_sc  [K]"); axR.set_ylabel("COP_inner  [-]")
     axR.set_title("COP vs subcooling (monotone; take it to the bound)"); axR.legend(); axR.grid(alpha=.3)
 
