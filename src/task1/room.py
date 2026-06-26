@@ -39,7 +39,7 @@ Units: degC, kJ/kg_a, kg, kg/s, s, kW. p = 1 bar.
 import numpy as np
 from scipy.optimize import fsolve
 from common import config
-from common import Fluid_CP_moist_air as Fmoist
+from common import Fluid_CP_moist_air_cached as Fmoist
 
 
 M_AIR = config.M_AIR_KG          # kg dry air; module global so sensitivity.py
