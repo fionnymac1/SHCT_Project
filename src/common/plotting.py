@@ -18,9 +18,10 @@ _MAP_LABELS = {"COP_inner": "$COP_{inner}$  [-]",
                "Q_AC_kW": "$\\dot{Q}_{AC}$  [kW]",
                "P_elec_kW": "$P_{elec}$  [kW]"}
 
-# Sequential single-hue map (white -> ETH Blue) for the Task-2 contour plots,
-# replacing matplotlib's default "viridis" with an ETH-consistent gradient.
-_ETH_SEQUENTIAL = LinearSegmentedColormap.from_list("eth_sequential", ["white", config.ETH_BLUE])
+# Task-2 contour map colour scale: Okabe-Ito colour-blind-safe blue/
+# vermillion, replacing matplotlib's default "viridis".
+_TASK2_SEQUENTIAL = LinearSegmentedColormap.from_list(
+    "task2_sequential", [config.OKABE_BLUE, config.OKABE_BLUISH_GREEN, config.OKABE_YELLOW ])
 
 
 def _setpoint_traces(r):
@@ -188,7 +189,7 @@ def visualize_performance_map(df_map, refrigerant, D_bore, value="COP_inner",
     if own_fig:
         fig, ax = plt.subplots(figsize=(6.5, 5))
 
-    cf = ax.contourf(X, Y, Z, levels=levels, cmap=_ETH_SEQUENTIAL)
+    cf = ax.contourf(X, Y, Z, levels=levels, cmap=_TASK2_SEQUENTIAL)
     ax.contour(X, Y, Z, levels=levels, colors=config.COLOR_NEUTRAL, linewidths=0.3, alpha=0.5)
     if show_points:
         ax.scatter(X, Y, s=6, facecolors="none", edgecolors=config.COLOR_NEUTRAL, linewidths=0.4)

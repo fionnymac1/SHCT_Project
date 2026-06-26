@@ -249,43 +249,44 @@ DAY_MIN = 24.0 * 60.0
 # --------------------------------------------------- Task 2 map output (I/O)
 PERFORMANCE_MAP_DIR = "results"   # precomputed (T_room,T_amb) AC maps, per (refrigerant, bore)
 
-# --------------------------------------------------------- ETH colour scheme
-# ETH Zurich corporate identity palette. Used consistently across every plot
-# in common/plotting.py and the Task-2 optimizer diagnostics in
-# task2/cycle_opt.py (the diverging map there is ETH Blue <-> white <-> ETH
-# Red, replacing an earlier colour-blind-safe Okabe-Ito choice for brand
-# consistency -- NB this trades away that specific accessibility property).
-ETH_BLUE = "#215CAF"
-ETH_PETROL = "#007894"
-ETH_GREEN = "#627313"
-ETH_BRONZE = "#8E6713"
-ETH_RED = "#B7352D"
-ETH_PURPLE = "#A7117A"
-ETH_GREY = "#6F6F6F"
+# ------------------------------------------------------ Okabe-Ito colour scheme
+# Okabe-Ito colour-blind-safe palette (Okabe & Ito, 2008). Used consistently
+# across every plot in common/plotting.py and the Task-2 optimizer diagnostics
+# in task2/cycle_opt.py -- deliberately NOT a brand palette, chosen for
+# accessibility instead.
+OKABE_BLACK = "#000000"
+OKABE_ORANGE = "#E69F00"
+OKABE_SKY_BLUE = "#56B4E9"
+OKABE_BLUISH_GREEN = "#009E73"
+OKABE_YELLOW = "#F0E442"
+OKABE_BLUE = "#0072B2"
+OKABE_VERMILLION = "#D55E00"
+OKABE_REDDISH_PURPLE = "#CC79A7"
 
 # Semantic roles -- plotting.py reads what a colour MEANS, not a raw hex/
 # matplotlib name, so the mapping only has to be decided once, here.
-COLOR_ROOM_T = ETH_BLUE
-COLOR_ROOM_RH = ETH_PURPLE
-COLOR_HUMIDITY_RATIO = ETH_PETROL
-COLOR_AC = ETH_BLUE                  # compressor: duty cycle, energy, starts, cost
-COLOR_VENT = ETH_GREEN               # ventilation/fan: duty cycle, energy, starts, cost
-COLOR_OFF = ETH_GREY                 # neutral: OFF duty-cycle segment
-COLOR_SERVER_LOAD = ETH_RED
-COLOR_COOLING_DELIVERED = ETH_BLUE
-COLOR_RECOMMENDED_BAND = ETH_GREEN   # comfort/target band shading (T and RH)
-COLOR_ALLOWABLE_LIMIT = ETH_RED      # hard safety-limit lines (T and RH)
-COLOR_SETPOINT = ETH_GREY            # cooling-OFF setpoint trace
-COLOR_SETPOINT_AC = ETH_PURPLE       # AC-on setpoint trace (plot_season panel 1)
-COLOR_SETPOINT_VENT = ETH_BRONZE     # VENT-on setpoint trace (plot_season panel 1)
-COLOR_SELECTED_DESIGN = ETH_BRONZE   # Task-3-selected design highlight outline
-COLOR_NEUTRAL = ETH_GREY             # reference lines, contour overlays, etc.
+COLOR_ROOM_T = OKABE_BLUE
+COLOR_ROOM_RH = OKABE_REDDISH_PURPLE
+COLOR_HUMIDITY_RATIO = OKABE_SKY_BLUE
+COLOR_AC = OKABE_BLUE                # compressor: duty cycle, energy, starts, cost
+COLOR_VENT = OKABE_BLUISH_GREEN      # ventilation/fan: duty cycle, energy, starts, cost
+COLOR_OFF = OKABE_BLACK              # neutral: OFF duty-cycle segment
+COLOR_SERVER_LOAD = OKABE_VERMILLION
+COLOR_COOLING_DELIVERED = OKABE_BLUE
+COLOR_RECOMMENDED_BAND = OKABE_BLUISH_GREEN   # comfort/target band shading (T and RH)
+COLOR_ALLOWABLE_LIMIT = OKABE_VERMILLION      # hard safety-limit lines (T and RH)
+COLOR_SETPOINT = OKABE_BLACK                  # cooling-OFF setpoint trace
+COLOR_SETPOINT_AC = OKABE_REDDISH_PURPLE      # AC-on setpoint trace (plot_season panel 1)
+COLOR_SETPOINT_VENT = OKABE_ORANGE            # VENT-on setpoint trace (plot_season panel 1)
+COLOR_SELECTED_DESIGN = OKABE_ORANGE          # Task-3-selected design highlight outline
+COLOR_NEUTRAL = OKABE_BLACK                   # reference lines, contour overlays, etc.
 
 # One colour per representative season-day (winter/spring/summer/fall),
 # shared across plot_overview and any other multi-season figure.
-SEASON_COLORS = {"winter": ETH_BLUE, "spring": ETH_GREEN,
-                 "summer": ETH_RED, "fall": ETH_BRONZE}
+SEASON_COLORS = {"winter": OKABE_BLUE, "spring": OKABE_BLUISH_GREEN,
+                 "summer": OKABE_VERMILLION, "fall": OKABE_ORANGE}
 
 # One colour per refrigerant, shared across any figure comparing all three
 # (e.g. analysis/superheat_subcool_sweep.py).
-REFRIGERANT_COLORS = {"Propane": ETH_BLUE, "R1234yf": ETH_GREEN, "DimethylEther": ETH_BRONZE}
+REFRIGERANT_COLORS = {"Propane": OKABE_BLUE, "R1234yf": OKABE_BLUISH_GREEN,
+                      "DimethylEther": OKABE_ORANGE}

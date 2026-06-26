@@ -170,8 +170,8 @@ def load_pinch_grid(path):
         return {k: z[k] for k in z.files}
 
 
-_ETH_DIVERGING = LinearSegmentedColormap.from_list(
-    "eth_diverging", [config.ETH_BLUE, "white", config.ETH_RED])
+_OKABE_ITO_DIVERGING = LinearSegmentedColormap.from_list(
+    "okabe_ito_diverging", [config.OKABE_BLUE, "white", config.OKABE_VERMILLION])
 
 
 def plot_pinch_check(grid, path):
@@ -207,7 +207,7 @@ def plot_pinch_check(grid, path):
 
     for a, (data, title) in zip(ax, panels):
         vmax = max(float(np.max(np.abs(data))), 1e-6)
-        im = a.pcolormesh(Ta, Tr, data, shading="nearest", cmap=_ETH_DIVERGING,
+        im = a.pcolormesh(Ta, Tr, data, shading="nearest", cmap=_OKABE_ITO_DIVERGING,
                           vmin=-vmax, vmax=vmax, edgecolors="0.85", linewidth=0.4)
         for i, j in clamped_ij:
             a.add_patch(Rectangle((ta_edges[j], tr_edges[i]),
