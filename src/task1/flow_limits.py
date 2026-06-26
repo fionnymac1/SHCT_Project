@@ -175,7 +175,7 @@ def vent_overshoot_ok(V_flow_m3s, T_amb_min_C, q_server_min_kw):
     """Worst forced VENT step (min run, from T_ON, coldest ambient, lowest server)
     must land at/above the lower band. Returns (T_land, ok)."""
     T_land = vent_step_landing_C(V_flow_m3s, config.T_ON_C, T_amb_min_C, q_server_min_kw)
-    return T_land, (T_land >= config.T_BAND_LOW_C)
+    return T_land, (T_land >= config.T_RECOMMENDED_LOW_C)
 
 
 def summarise(server_by_season):

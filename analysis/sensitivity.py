@@ -77,7 +77,7 @@ def metrics(cmap):
     return (max(res[s]['T_max'] for s in config.SEASONS),
             min(res[s]['T_min'] for s in config.SEASONS),
             sum(res[s]['ac_starts'] for s in config.SEASONS),
-            100 * np.mean([res[s]['frac_in_band'] for s in config.SEASONS]),
+            100 * np.mean([res[s]['frac_T_recommended'] for s in config.SEASONS]),
             100 * min(res[s]['phi_min'] for s in config.SEASONS))
 
 
