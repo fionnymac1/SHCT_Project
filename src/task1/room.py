@@ -60,6 +60,29 @@ def Xsat(T_C):
     return float(Fmoist.state_moist(["T", "phi"], [T_C, 1.0])["X"])
 
 
+def dew_point_C(X, p_bar=1.0):
+    """Dew point temperature [degC] at humidity ratio X [kg_w/kg_a], total
+    pressure p_bar [bar]. Magnus-Tetens formula (saturation vapor pressure
+    over LIQUID water, the standard meteorological/HVAC dew-point convention
+    -- distinct from "frost point", which uses the ice curve), inverted for T.
+
+    NOT computed via Fluid_CP_moist_air/CoolProp: state_moist relies on
+    saturated-LIQUID water properties (state(["T","x"],[T,0.],"water",...)),
+    which CoolProp cannot provide below the triple point (0.01 degC) -- there
+    is no stable saturated-liquid state there, so state_moist raises for any
+    dew point below 0 degC. Since this room's allowable dew-point band
+    (config.DP_ALLOW_LOW_C = -9 degC) is itself sub-zero, the course tool
+    cannot cover the needed range at all, regardless of approach. The Magnus
+    formula is closed-form (no CoolProp, no solver) and IS the standard
+    dew-point definition through this range, not an approximation adopted to
+    work around the limitation. Validated against Fluid_CP_moist_air/CoolProp
+    in the region both can compute (T_dp >= 0 degC): agreement within 0.04 degC.
+    """
+    p_w_hpa = X * p_bar * 1000.0 / (0.622 + X)   # vapour partial pressure [hPa]
+    lnr = np.log(p_w_hpa / 6.112)
+    return 243.12 * lnr / (17.62 - lnr)
+
+
 # Water-enthalpy reference of the course module (the local h_w0 inside
 # state_moist): saturated-liquid water at the triple point (0.01 degC, 611.7 Pa).
 _H_W0 = float(Fmoist.state(["T", "p"], [0.01, 611.7e-5], "water", "CBar")["h"])

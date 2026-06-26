@@ -48,10 +48,13 @@ def aggregate_metrics(refrigerant, bore_mm, R, seasons=None):
         "frac_T_allowable": float(np.mean([R[s]["frac_T_allowable"] for s in seasons])),
         "frac_phi_recommended": float(np.mean([R[s]["frac_phi_recommended"] for s in seasons])),
         "frac_phi_allowable": float(np.mean([R[s]["frac_phi_allowable"] for s in seasons])),
+        "frac_dp_allowable": float(np.mean([R[s]["frac_dp_allowable"] for s in seasons])),
         "T_min": float(min(R[s]["T_min"] for s in seasons)),
         "T_max": float(max(R[s]["T_max"] for s in seasons)),
         "phi_min": float(min(R[s]["phi_min"] for s in seasons)),
         "phi_max": float(max(R[s]["phi_max"] for s in seasons)),
+        "dp_min": float(min(R[s]["dp_min"] for s in seasons)),
+        "dp_max": float(max(R[s]["dp_max"] for s in seasons)),
         "ac_starts_total": int(sum(R[s]["ac_starts"] for s in seasons)),
         "vent_starts_total": int(sum(R[s]["vent_starts"] for s in seasons)),
         "ac_min_total": float(sum(R[s]["ac_min"] for s in seasons)),
@@ -162,15 +165,16 @@ def score_key(row):
     """Lexicographic ranking key (smaller = better), per the task sheet's
     selection criteria in priority order:
       1. room air condition, hard safety bound first: maximise time within
-         the ALLOWABLE T and RH limits (never to be crossed -- a breach here
-         is a hardware-safety failure, worse than merely missing comfort);
+         the ALLOWABLE T, RH and dew-point limits (never to be crossed -- a
+         breach here is a hardware-safety failure, worse than merely missing
+         comfort);
       2. room air condition, comfort target: maximise time within the
          RECOMMENDED T band (the day-to-day operating goal);
       3. overall energy demand: minimise total AC + ventilation electricity;
       4. compressor start/stop cycles: minimise AC starts (mechanical wear).
     Operating times (ac_min/vent_min) are reported alongside for discussion
     but not separately scored (largely implied by (1)/(2)/(3))."""
-    return (-min(row["frac_T_allowable"], row["frac_phi_allowable"]),
+    return (-min(row["frac_T_allowable"], row["frac_phi_allowable"], row["frac_dp_allowable"]),
             -row["frac_T_recommended"], row["E_total_kWh"], row["ac_starts_total"])
 
 

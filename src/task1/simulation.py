@@ -151,6 +151,7 @@ def _count_starts(mode, label):
 
 def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WEL, COPR):
     dt_h = config.TIME_STEP_MIN / 60.0
+    DP = room.dew_point_C(X)
     frac_T_recommended = np.mean((T >= config.T_RECOMMENDED_LOW_C) &
                                   (T <= config.T_RECOMMENDED_HIGH_C))
     frac_T_allowable = np.mean((T >= config.T_ALLOW_LOW_C) &
@@ -159,15 +160,19 @@ def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WEL, COPR):
                                     (PHI <= config.PHI_RECOMMENDED_HIGH))
     frac_phi_allowable = np.mean((PHI >= config.PHI_ALLOW_LOW) &
                                   (PHI <= config.PHI_ALLOW_HIGH))
+    frac_dp_allowable = np.mean((DP >= config.DP_ALLOW_LOW_C) &
+                                 (DP <= config.DP_ALLOW_HIGH_C))
     return {
-        "season": season, "t": t, "T": T, "phi": PHI, "X": X, "mode": MODE,
+        "season": season, "t": t, "T": T, "phi": PHI, "X": X, "T_dp": DP, "mode": MODE,
         "Q_cool": QCOOL, "Q_AC": QAC, "Q_dem": QDEM, "W_el": WEL, "COP_res": COPR,
         "T_min": float(T.min()), "T_max": float(T.max()),
         "phi_min": float(PHI.min()), "phi_max": float(PHI.max()),
+        "dp_min": float(DP.min()), "dp_max": float(DP.max()),
         "frac_T_recommended": float(frac_T_recommended),
         "frac_T_allowable": float(frac_T_allowable),
         "frac_phi_recommended": float(frac_phi_recommended),
         "frac_phi_allowable": float(frac_phi_allowable),
+        "frac_dp_allowable": float(frac_dp_allowable),
         "ac_starts": _count_starts(MODE, "AC"),
         "vent_starts": _count_starts(MODE, "VENT"),
         "ac_min": float(np.sum(MODE == "AC") * config.TIME_STEP_MIN),

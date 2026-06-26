@@ -189,8 +189,8 @@ def plot_pinch_check(grid, path):
     plt.rcParams.update({"font.size": 11, "axes.titlesize": 12, "figure.facecolor": "white",
                          "hatch.color": "0.3"})
     fig, ax = plt.subplots(1, 3, figsize=(16, 4.8), constrained_layout=True)
-    panels = [(dEv, "(a)  T_ev shift  [K]"),
-              (dCo, "(b)  T_co shift  [K]"),
+    panels = [(dEv, "(a)  optimal T_ev shift  [K]"),
+              (dCo, "(b)  optimal T_co shift  [K]"),
               (dCOP, "(c)  COP gap  [–]")]
     # Explicit Rectangle per clamped cell, edges computed from the same grid
     # pcolormesh(shading="nearest") uses internally -- guarantees both correct

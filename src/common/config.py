@@ -60,6 +60,16 @@ PHI_RECOMMENDED_HIGH = 0.70  # comfort/target band upper
 PHI_ALLOW_LOW = 0.08         # hard lower limit
 PHI_ALLOW_HIGH = 0.80        # hard upper limit
 
+# Dew point: hard allowable band only (no separate recommended target given).
+# [ASSUMPTION] rationale not specified alongside the values -- these read as
+# the same family of limit as ASHRAE TC9.9's data-centre allowable envelope
+# (condensation risk above the upper bound, electrostatic-discharge/static
+# risk below the lower bound), matching how T_RECOMMENDED/PHI_ALLOW are
+# sourced elsewhere in this file. Computed from X via room.dew_point_C
+# (Magnus-Tetens formula).
+DP_ALLOW_LOW_C = -9.0
+DP_ALLOW_HIGH_C = 17.0
+
 # --------------------------------------------- control (1.3) state machine
 # Temperature-only on/off with hysteresis, both setpoints inside the band.
 # TODO: check the delta of the bang bang controller is sufficient to prevent excessive cycling
@@ -273,13 +283,22 @@ COLOR_VENT = OKABE_BLUISH_GREEN      # ventilation/fan: duty cycle, energy, star
 COLOR_OFF = OKABE_BLACK              # neutral: OFF duty-cycle segment
 COLOR_SERVER_LOAD = OKABE_VERMILLION
 COLOR_COOLING_DELIVERED = OKABE_BLUE
-COLOR_RECOMMENDED_BAND = OKABE_BLUISH_GREEN   # comfort/target band shading (T and RH)
-COLOR_ALLOWABLE_LIMIT = OKABE_VERMILLION      # hard safety-limit lines (T and RH)
+COLOR_RECOMMENDED_BAND = OKABE_BLUISH_GREEN   # comfort/target + hard-limit band shading (T and RH);
+                                               # allowable uses the same hue at ALPHA_ALLOWABLE_BAND
 COLOR_SETPOINT = OKABE_BLACK                  # cooling-OFF setpoint trace
 COLOR_SETPOINT_AC = OKABE_REDDISH_PURPLE      # AC-on setpoint trace (plot_season panel 1)
 COLOR_SETPOINT_VENT = OKABE_ORANGE            # VENT-on setpoint trace (plot_season panel 1)
 COLOR_SELECTED_DESIGN = OKABE_ORANGE          # Task-3-selected design highlight outline
 COLOR_NEUTRAL = OKABE_BLACK                   # reference lines, contour overlays, etc.
+COLOR_DEW_POINT = OKABE_VERMILLION            # dew point trace + its allowable band
+
+# Recommended/allowable bands are nested: SAME hue, recommended drawn darker
+# (the narrower INNER comfort target) and allowable lighter (the wider OUTER
+# band) -- not two different colours. Applies to any quantity with both a
+# recommended and an allowable band (T, RH); dew point has only the (lighter)
+# allowable band.
+ALPHA_RECOMMENDED_BAND = 0.35
+ALPHA_ALLOWABLE_BAND = 0.12
 
 # One colour per representative season-day (winter/spring/summer/fall),
 # shared across plot_overview and any other multi-season figure.
