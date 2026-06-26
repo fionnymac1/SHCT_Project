@@ -304,13 +304,20 @@ COLOR_SELECTED_DESIGN = ETH_QUAL_GOLD         # Task-3-selected design highlight
 COLOR_NEUTRAL = ETH_QUAL_BLACK                # reference lines, contour overlays, etc.
 COLOR_DEW_POINT = ETH_QUAL_PETROL             # dew point trace (band shading is COLOR_HUMIDITY_BAND)
 
-# Recommended/allowable bands are nested: SAME hue, recommended drawn darker
-# (the narrower INNER comfort target) and allowable lighter (the wider OUTER
-# band) -- not two different colours. T uses COLOR_RECOMMENDED_BAND (both
-# bands); RH and dew point use COLOR_HUMIDITY_BAND (RH: allowable only, no
-# recommended target; dew point: both bands).
+# Recommended/allowable are nested two-tier categories (inner comfort target
+# vs outer hard limit). Where BOTH tiers exist (T bands/bars, dew-point
+# bands/bars), the outer/allowable tier uses the paired companion shade
+# (eth_colormaps.ETH_QUAL_PARTNER) instead of the same hue at a lower alpha --
+# a literal colour pair, not an opacity trick. RH has no recommended target
+# (allowable only), so it has nothing to pair against and keeps the old
+# same-hue + ALPHA_ALLOWABLE_BAND treatment.
+COLOR_RECOMMENDED_BAND_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Green"]   # T band, outer tier
+COLOR_HUMIDITY_BAND_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Purple"]    # DP band, outer tier
+COLOR_ROOM_T_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Blue"]             # T bar, outer tier
+COLOR_DEW_POINT_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Petrol"]        # DP bar, outer tier
+
 ALPHA_RECOMMENDED_BAND = 0.35
-ALPHA_ALLOWABLE_BAND = 0.12
+ALPHA_ALLOWABLE_BAND = 0.12   # RH only now (T/DP use the paired colours above)
 
 # One colour per representative season-day (winter/spring/summer/fall),
 # shared across plot_overview and any other multi-season figure.

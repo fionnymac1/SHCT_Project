@@ -114,6 +114,7 @@ def plot_season(r, path, label=None):
     #   Black  = the controlled variable -> room T
     # (comfort/allowable bands stay a shared green, RH/DP data lines stay blue)
     _BAND = config.ETH_QUAL_GREEN
+    _BAND_ALLOWABLE = config.COLOR_RECOMMENDED_BAND_ALLOWABLE   # paired light-green outer tier
     _T_LINE = config.ETH_QUAL_BLACK
     _AC_SETPOINT, _VENT_SETPOINT, _OFF_SETPOINT = (
         config.ETH_QUAL_BLUE, config.ETH_QUAL_PURPLE, config.ETH_QUAL_GREY)
@@ -129,10 +130,11 @@ def plot_season(r, path, label=None):
     # SCHED_K>0 moves them through the day), so they are drawn per step from
     # control.setpoints() -- not as the old fixed config.T_ON/T_OFF lines.
     toff, ton, tonac = _setpoint_traces(r)
-    # nested bands: allowable (wider, lighter) drawn first, recommended (narrower,
-    # darker) drawn on top -- same hue, so "darker = comfort target, lighter = hard limit"
+    # nested bands: allowable (wider, outer) drawn first, recommended (narrower,
+    # inner) drawn on top -- PAIRED colours (base hue = recommended, paired
+    # companion shade = allowable), not the same hue at two opacities.
     ax[0].axhspan(config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C,
-                  color=_T_BAND, alpha=config.ALPHA_ALLOWABLE_BAND,
+                  color=_BAND_ALLOWABLE, alpha=config.ALPHA_RECOMMENDED_BAND,
                   label="allowable %g-%g C" % (config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C))
     ax[0].axhspan(config.T_RECOMMENDED_LOW_C, config.T_RECOMMENDED_HIGH_C,
                   color=_T_BAND, alpha=config.ALPHA_RECOMMENDED_BAND,
@@ -162,9 +164,9 @@ def plot_season(r, path, label=None):
     ax[1].set_ylabel("relative humidity [%]"); ax[1].set_ylim(0, 90)
     ax[1].legend(loc="upper right", fontsize=8)
 
-    # (3) dew point (+ recommended/allowable bands)
+    # (3) dew point (+ recommended/allowable bands, same paired-colour scheme as panel 1)
     ax[2].axhspan(config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C,
-                  color=_DP_BAND, alpha=config.ALPHA_ALLOWABLE_BAND,
+                  color=_BAND_ALLOWABLE, alpha=config.ALPHA_RECOMMENDED_BAND,
                   label="allowable %g-%g C" % (config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C))
     ax[2].axhspan(config.DP_RECOMMENDED_LOW_C, config.DP_RECOMMENDED_HIGH_C,
                   color=_DP_BAND, alpha=config.ALPHA_RECOMMENDED_BAND,
@@ -211,7 +213,7 @@ def plot_overview(R, path, label=None):
     fig, ax = plt.subplots(3, 1, figsize=(10, 10), sharex=True)
     colors = config.SEASON_COLORS
     ax[0].axhspan(config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C,
-                  color=config.COLOR_RECOMMENDED_BAND, alpha=config.ALPHA_ALLOWABLE_BAND,
+                  color=config.COLOR_RECOMMENDED_BAND_ALLOWABLE, alpha=config.ALPHA_RECOMMENDED_BAND,
                   label="allowable %g-%g C" % (config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C))
     ax[0].axhspan(config.T_RECOMMENDED_LOW_C, config.T_RECOMMENDED_HIGH_C,
                   color=config.COLOR_RECOMMENDED_BAND, alpha=config.ALPHA_RECOMMENDED_BAND,
@@ -234,7 +236,7 @@ def plot_overview(R, path, label=None):
     ax[1].set_ylabel("room RH [%]"); ax[1].set_ylim(0, 90)
     ax[1].legend(loc="upper right", ncol=2, fontsize=8)
     ax[2].axhspan(config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C,
-                  color=config.COLOR_HUMIDITY_BAND, alpha=config.ALPHA_ALLOWABLE_BAND,
+                  color=config.COLOR_HUMIDITY_BAND_ALLOWABLE, alpha=config.ALPHA_RECOMMENDED_BAND,
                   label="allowable %g-%g C" % (config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C))
     ax[2].axhspan(config.DP_RECOMMENDED_LOW_C, config.DP_RECOMMENDED_HIGH_C,
                   color=config.COLOR_HUMIDITY_BAND, alpha=config.ALPHA_RECOMMENDED_BAND,
@@ -416,7 +418,7 @@ def plot_design_comparison(df_compare, path, best=None):
     fig, ax = plt.subplots(5, 1, figsize=(max(7, 1.3 * len(df)), 13), sharex=True)
 
     ax[0].bar(x - w / 2, 100 * df["frac_T_recommended"], w, color=config.COLOR_ROOM_T, label="recommended")
-    ax[0].bar(x + w / 2, 100 * df["frac_T_allowable"], w, color=config.COLOR_ROOM_T, alpha=0.45, label="allowable")
+    ax[0].bar(x + w / 2, 100 * df["frac_T_allowable"], w, color=config.COLOR_ROOM_T_ALLOWABLE, label="allowable")
     outline_best(ax[0], 100)
     ax[0].axhline(100, color=config.COLOR_NEUTRAL, ls=":", lw=0.9)
     ax[0].set_ylabel("time in T band [%]")
@@ -431,7 +433,7 @@ def plot_design_comparison(df_compare, path, best=None):
     ax[1].legend(fontsize=8)
 
     ax[2].bar(x - w / 2, 100 * df["frac_dp_recommended"], w, color=config.COLOR_DEW_POINT, label="recommended")
-    ax[2].bar(x + w / 2, 100 * df["frac_dp_allowable"], w, color=config.COLOR_DEW_POINT, alpha=0.45, label="allowable")
+    ax[2].bar(x + w / 2, 100 * df["frac_dp_allowable"], w, color=config.COLOR_DEW_POINT_ALLOWABLE, label="allowable")
     outline_best(ax[2], 100)
     ax[2].axhline(100, color=config.COLOR_NEUTRAL, ls=":", lw=0.9)
     ax[2].set_ylabel("time in DP band [%]")

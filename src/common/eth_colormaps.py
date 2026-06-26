@@ -269,6 +269,52 @@ def set_eth_cycle(n: int | None = None) -> None:
     mpl.rcParams["axes.prop_cycle"] = cycler(color=eth_cycle(n))
 
 
+def _eth_partner(hex_color: str) -> tuple[float, float, float]:
+    """tab20-style companion shade. Mid/dark hues -> lighten toward white. An
+    already-light hue (e.g. Gold) -> darken, but in CAM02-UCS while pulling a*
+    toward neutral and nudging b* up, so it reads as a dark golden-YELLOW rather
+    than bronze (plain RGB scaling of a yellow drifts to olive/brown)."""
+    c = np.array(to_rgb(hex_color))
+    u = _rgb2ucs(c[None])[0]
+    if u[0] > 70:                              # already light -> darker, kept yellow
+        u = u.copy()
+        u[0] -= 30.0                           # lower lightness
+        u[1] *= 0.45                           # less red  (a*) -> less bronze
+        u[2] *= 1.06                           # more yellow (b*)
+        return tuple(np.clip(_ucs2rgb(u[None])[0], 0, 1))
+    return tuple(0.45 * c + 0.55)              # else -> lighten toward white
+
+
+def make_paired(base_hexes=None):
+    """tab20-style paired palette: each ETH hue followed by a companion shade,
+    pairs kept adjacent. Use for grouped/nested categories (group + subgroup),
+    NOT 20 flat categories. Returns a flat list of RGB tuples (length 2*N)."""
+    base_hexes = base_hexes or ETH_QUAL_LIST
+    out = []
+    for h in base_hexes:
+        out += [to_rgb(h), _eth_partner(h)]
+    return out
+
+
+ETH_PAIRED = make_paired()
+_paired = ListedColormap(ETH_PAIRED, name="ETHpaired")
+cmaps["paired"] = _paired
+try:
+    mpl.colormaps.register(_paired, force=True)
+except Exception:
+    pass
+
+# Named lookup for the partner (paired companion) shade of each ETH_QUAL role
+# colour -- e.g. ETH_QUAL_PARTNER["Green"] is the lighter green plotting.py
+# uses as the "allowable" (outer) tier wherever a figure pairs a two-tier
+# nested category (recommended/allowable and similar) against
+# ETH_QUAL["Green"] (the base/inner tier). config.py exposes the ones actually
+# used as ETH_QUAL_<NAME>_LIGHT.
+ETH_QUAL_PARTNER: dict[str, tuple[float, float, float]] = {
+    name: _eth_partner(hexval) for name, hexval in ETH_QUAL.items()
+}
+
+
 def qualitative_preview(save: str | None = None, simulate_cvd: bool = True):
     """Swatch chart of the ETH qualitative palette; optionally a deuteranope row."""
     import matplotlib.pyplot as plt
@@ -297,9 +343,10 @@ def qualitative_preview(save: str | None = None, simulate_cvd: bool = True):
     return fig
 
 
-__all__ = ["ETH_COLORS", "WARM_GOLD", "ETH_QUAL", "ETH_QUAL_LIST", "cmaps",
-           "make_sequential", "make_sequential_multihue", "lightness", "is_monotonic",
-           "preview", "eth_cycle", "set_eth_cycle", "qualitative_preview"]
+__all__ = ["ETH_COLORS", "WARM_GOLD", "ETH_QUAL", "ETH_QUAL_LIST", "ETH_PAIRED",
+           "ETH_QUAL_PARTNER", "cmaps", "make_sequential", "make_sequential_multihue",
+           "make_paired", "lightness", "is_monotonic", "preview", "eth_cycle",
+           "set_eth_cycle", "qualitative_preview"]
 
 if __name__ == "__main__":
     import matplotlib
