@@ -333,5 +333,6 @@ REFRIGERANT_COLORS = {"Propane": ETH_QUAL_BLUE, "R1234yf": ETH_QUAL_GREEN,
 # plotting.py's Task-2 COP_inner / Q_AC_kW performance-map contour plots.
 # Multi-hue (viridis-style) rather than single-hue: better step
 # discriminability on the dense COP/Q_AC contours than a single-hue ramp gives.
+# Both maps share the same colour scale so the two figures read consistently.
 SEQUENTIAL_CMAP_Q_AC = eth_colormaps.cmaps["multi"]
-SEQUENTIAL_CMAP_COP = eth_colormaps.cmaps["warm"]
+SEQUENTIAL_CMAP_COP = eth_colormaps.cmaps["multi"]
