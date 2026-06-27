@@ -208,12 +208,20 @@ def rhs(z, t, mode, p):
         dhdt = (Q_server - Q_cool) / M_AIR
         dmwdt = (p["X_sink"] - X) * m_dot
     elif mode == "VENT":
-        denom = h_ - p["h_amb"]
-        if denom > 1e-6:
-            m_dot = p["rhoV"]                  # fixed design air flow
-            Q_cool = m_dot * denom             # -> 0 as room -> ambient
-        else:
-            Q_cool = m_dot = 0.0
+        # The fan is ON, so it ALWAYS moves the fixed design flow rhoV -- the
+        # air exchange does not depend on the sign of the enthalpy difference.
+        # Q_cool = rhoV*(h_-h_amb) self-limits on its own: it -> 0 as the room
+        # approaches ambient enthalpy and goes NEGATIVE (the room warms) when
+        # ambient carries more enthalpy than the dried room -- which, with the
+        # AC having dried the room to low X, happens on cool-but-humid
+        # spring/summer/fall ambient even though T_amb < T_room. A temperature-
+        # only controller cannot sense this, so it is the physically correct
+        # penalty for venting enthalpically-worse air, NOT something to suppress.
+        # Crucially the LATENT exchange (dmwdt) must be tracked at full flow
+        # regardless of sign: gating m_dot on denom>0 silently dropped the
+        # humidity exchange the running fan must cause (graded; see module head).
+        m_dot = p["rhoV"]                      # fixed design air flow (fan on)
+        Q_cool = m_dot * (h_ - p["h_amb"])     # self-limits; may be < 0 (warming)
         dhdt = (Q_server - Q_cool) / M_AIR
         dmwdt = (p["X_amb"] - X) * m_dot
     else:
