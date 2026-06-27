@@ -85,7 +85,8 @@ T_ON_AC_C = 25.0             # MECHANICAL COOLING (AC) setpoint, > T_ON_C. VENT 
                              # temperature itself is the adequacy signal). Widen the
                              # T_ON..T_ON_AC gap if doomed VENT attempts churn the AC.
 TIME_STEP_MIN = 5.0          # simulation timestep ("sufficiently accurrate" but maybe worth running a sensitivity analysis on this)
-# TODO: "Typical minimal standstill and running times of air conditioning units" but check if there is further information on this
+# Minimum run/standstill times: given directly by the project description, not
+# an assumption -- not open to revision.
 MIN_RUN_MIN = 5.0            # minimum run time      = 1 step
 MIN_STANDSTILL_MIN = 10.0    # minimum standstill    = 2 steps
 
@@ -235,6 +236,17 @@ FILE_DAYAHEAD_PRICES = {
 # files are EUR/MWh). Revisit with the actual rate on each price date for a
 # tighter number.
 EUR_TO_CHF = 0.95
+
+# [ASSUMPTION] Day-ahead prices are WHOLESALE (what a utility pays on the spot
+# market), not the RETAIL tariff an actual commercial customer is billed.
+# Swissgrid reports energy as ~46% of a Swiss electricity bill, the rest being
+# grid/transport fees and taxes (Swissgrid, "How Electricity Prices Are
+# Calculated in Switzerland"; ElCom/upgrid.ch 2026 tariff data) -- i.e. retail
+# is roughly 1/0.46 ~= 2.2x the energy-only cost. We approximate this with a
+# flat factor of 2 rather than the more precise 2.2, since the comparison is
+# already approximate (retail tariffs reflect forward-hedged procurement, not
+# the literal day-ahead spot price used here).
+RETAIL_MARKUP_FACTOR = 2.0
 
 # [ASSUMPTION] combined compressor motor + drive efficiency, converting the
 # compressor model's FLUID/shaft power (W = m_dot*(h2-h1), from

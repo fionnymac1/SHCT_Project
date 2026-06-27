@@ -8,9 +8,9 @@ electricity prices (common.data_io.load_dayahead_prices -- one real calendar
 day per representative season, ENTSO-E Swiss bidding zone, hourly). Each
 hour's energy is costed at that hour's actual price, not a flat assumed rate.
 
-Two assumptions this task is responsible for owning (both previously flagged
-as placeholders, see notes/Compressor_Model_Bridge.md point P7 and
-notes/NOTES_Task1.md):
+Three assumptions this task is responsible for owning (the first two
+previously flagged as placeholders, see notes/Compressor_Model_Bridge.md
+point P7 and notes/NOTES_Task1.md):
 
   1. Electricity tariff: REAL hourly day-ahead prices (config.FILE_DAYAHEAD_
      PRICES), converted EUR/MWh -> CHF/kWh via config.EUR_TO_CHF.
@@ -22,6 +22,12 @@ notes/NOTES_Task1.md):
      The ventilation fan's E_vent_kWh is already an electrical-power stand-in
      (FAN_SPECIFIC_POWER_KW_PER_M3S in task1.simulation), so it is NOT divided
      by ETA_MOTOR_ELEC.
+  3. Wholesale -> retail markup (config.RETAIL_MARKUP_FACTOR = 2.0): the
+     day-ahead price is what a utility pays on the wholesale market, not what
+     a commercial customer is actually billed (which also includes grid/
+     transport fees and taxes -- roughly 54% of a Swiss bill per Swissgrid).
+     Costs below are therefore day-ahead price x this factor, approximating
+     a real invoice rather than a wholesale-only lower bound.
 
 NOT annualised: each representative day's real day-ahead price is specific to
 that one calendar date and does not represent ~91 days of the season the way
@@ -59,7 +65,8 @@ def design_economics(df_energy, prices_by_season=None):
     for (refrigerant, bore_mm), g in df_energy.groupby(["refrigerant", "bore_mm"]):
         cost_ac = cost_vent = E_ac = E_vent = 0.0
         for _, r in g.iterrows():
-            price = prices_by_season[r["season"]]["price_chf_per_kwh"][int(r["hour"])]
+            price = (prices_by_season[r["season"]]["price_chf_per_kwh"][int(r["hour"])]
+                     * config.RETAIL_MARKUP_FACTOR)
             e_ac_elec = r["E_ac_kWh"] / config.ETA_MOTOR_ELEC
             e_vent_elec = r["E_vent_kWh"]
             E_ac += e_ac_elec; E_vent += e_vent_elec
