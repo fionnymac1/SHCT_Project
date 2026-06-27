@@ -27,13 +27,13 @@ from task3 import sweep
 # ----------------------------------------------------- which plots to generate
 PLOT_TASK1_SEASONS           = True   # figures/task1_<season>.png            (4 figures)
 PLOT_TASK1_OVERVIEW          = True   # figures/task1_overview.png
-PLOT_TASK2_HEATMAPS          = True   # figures/task2_COP_inner_grid.png, task2_Q_AC_kW_grid.png
-PLOT_TASK3_SEASONS           = True   # figures/task3_<season>.png   (selected design, 4 figures)
-PLOT_TASK3_OVERVIEW          = True   # figures/task3_overview.png   (selected design)
-PLOT_TASK3_COMPARISON        = True   # figures/task3_comparison.png
-PLOT_TASK3_COMPARISON_DETAIL = True   # figures/task3_comparison_detail.png
-PLOT_TASK4_COST              = True   # figures/task4_cost_comparison.png
-PLOT_TASK4_PRICES            = True   # figures/task4_dayahead_prices.png
+PLOT_TASK2_HEATMAPS          = False   # figures/task2_COP_inner_grid.png, task2_Q_AC_kW_grid.png
+PLOT_TASK3_SEASONS           = False   # figures/task3_<season>.png   (selected design, 4 figures)
+PLOT_TASK3_OVERVIEW          = False   # figures/task3_overview.png   (selected design)
+PLOT_TASK3_COMPARISON        = False  # figures/task3_comparison.png
+PLOT_TASK3_COMPARISON_DETAIL = False  # figures/task3_comparison_detail.png
+PLOT_TASK4_COST              = False  # figures/task4_cost_comparison.png
+PLOT_TASK4_PRICES            = False  # figures/task4_dayahead_prices.png
 
 SAVE_FIGURES = True   # False -> report what WOULD be (re)generated, write nothing
 DPI          = 400    # resolution for every figure below (plotting.py reads config.FIGURE_DPI)

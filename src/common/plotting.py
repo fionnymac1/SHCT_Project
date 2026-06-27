@@ -112,16 +112,17 @@ def plot_season(r, path, label=None):
     #   Purple = ventilation           -> VENT setpoint line, VENT spans
     #   Grey   = neutral "off" state   -> cooling-OFF line
     #   Black  = the controlled variable -> room T
-    # (comfort/allowable bands stay a shared green, RH/DP data lines stay blue)
     _BAND = config.ETH_QUAL_GREEN
-    _BAND_ALLOWABLE = config.COLOR_RECOMMENDED_BAND_ALLOWABLE   # paired light-green outer tier
+    _BAND_ALLOWABLE = config.COLOR_RECOMMENDED_BAND_ALLOWABLE   # paired light-green outer tier (T)
+    _HUMID_BAND = config.COLOR_HUMIDITY_BAND                      # purple (DP recommended tier)
+    _HUMID_BAND_ALLOWABLE = config.COLOR_HUMIDITY_BAND_ALLOWABLE  # paired light-purple (RH + DP outer tier)
     _T_LINE = config.ETH_QUAL_BLACK
     _AC_SETPOINT, _VENT_SETPOINT, _OFF_SETPOINT = (
-        config.ETH_QUAL_BLUE, config.ETH_QUAL_PURPLE, config.ETH_QUAL_GREY)
-    _RH_LINE, _RH_BAND = config.ETH_QUAL_BLUE, _BAND
-    _DP_LINE, _DP_BAND = config.ETH_QUAL_BLUE, _BAND
+        config.ETH_QUAL_BLUE, config.ETH_QUAL_GOLD, config.ETH_QUAL_GREY)
+    _RH_LINE, _RH_BAND = config.ETH_QUAL_GREY, _HUMID_BAND_ALLOWABLE
+    _DP_LINE, _DP_BAND = config.ETH_QUAL_GREY, _HUMID_BAND
     _T_BAND = _BAND
-    _AC_SHADE, _VENT_SHADE = config.ETH_QUAL_BLUE, config.ETH_QUAL_PURPLE
+    _AC_SHADE, _VENT_SHADE = config.ETH_QUAL_BLUE, config.ETH_QUAL_GOLD
     _LOAD_LINE, _COOL_LINE = config.ETH_QUAL_RED, config.ETH_QUAL_BLUE
 
     # (1) room temperature: fixed comfort/safety envelopes + the THREE control
@@ -141,11 +142,11 @@ def plot_season(r, path, label=None):
                   label="recommended %g-%g C"
                         % (config.T_RECOMMENDED_LOW_C, config.T_RECOMMENDED_HIGH_C))
     # setpoints under the room-T line (room T plotted last -> stays on top)
-    ax[0].step(th, tonac, where="post", color=_AC_SETPOINT, ls="-.", lw=1.1,
+    ax[0].step(th, tonac, where="post", color=_AC_SETPOINT, ls="--", lw=1.1,
                label=_level_label("AC on", tonac))
     ax[0].step(th, ton, where="post", color=_VENT_SETPOINT, ls="--", lw=1.1,
                label=_level_label("VENT on", ton))
-    ax[0].step(th, toff, where="post", color=_OFF_SETPOINT, ls=":", lw=1.1,
+    ax[0].step(th, toff, where="post", color=_OFF_SETPOINT, ls="--", lw=1.1,
                label=_level_label("cooling OFF", toff))
     ax[0].plot(th, r["T"], color=_T_LINE, lw=1.6, label="room T", zorder=6)
     ax[0].set_ylabel("temperature [C]")
@@ -156,17 +157,20 @@ def plot_season(r, path, label=None):
     ax[0].set_ylim(_tlo - _pad, _thi + _pad)
     ax[0].legend(loc="upper right", fontsize=8, ncol=2)
 
-    # (2) relative humidity (allowable band only -- no recommended target for RH)
+    # (2) relative humidity (allowable band only -- no recommended target for
+    # RH, so it uses the purple PARTNER shade directly -- the same outer tier
+    # dew point's allowable uses below).
     ax[1].axhspan(100 * config.PHI_ALLOW_LOW, 100 * config.PHI_ALLOW_HIGH,
-                  color=_RH_BAND, alpha=config.ALPHA_ALLOWABLE_BAND,
+                  color=_RH_BAND, alpha=config.ALPHA_RECOMMENDED_BAND,
                   label="allowable %g-%g %%" % (100 * config.PHI_ALLOW_LOW, 100 * config.PHI_ALLOW_HIGH))
     ax[1].plot(th, 100 * r["phi"], color=_RH_LINE, lw=1.5, label="room RH")
     ax[1].set_ylabel("relative humidity [%]"); ax[1].set_ylim(0, 90)
     ax[1].legend(loc="upper right", fontsize=8)
 
-    # (3) dew point (+ recommended/allowable bands, same paired-colour scheme as panel 1)
+    # (3) dew point. Allowable is pinned to literally equal RH's allowable
+    # (same purple-partner colour as panel 2 above).
     ax[2].axhspan(config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C,
-                  color=_BAND_ALLOWABLE, alpha=config.ALPHA_RECOMMENDED_BAND,
+                  color=_RH_BAND, alpha=config.ALPHA_RECOMMENDED_BAND,
                   label="allowable %g-%g C" % (config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C))
     ax[2].axhspan(config.DP_RECOMMENDED_LOW_C, config.DP_RECOMMENDED_HIGH_C,
                   color=_DP_BAND, alpha=config.ALPHA_RECOMMENDED_BAND,
@@ -231,10 +235,12 @@ def plot_overview(R, path, label=None):
     ax[0].set_title("Four representative days - room temperature & humidity (%s)" % label)
     ax[0].legend(loc="upper right", ncol=3, fontsize=8)
     ax[1].axhspan(100 * config.PHI_ALLOW_LOW, 100 * config.PHI_ALLOW_HIGH,
-                  color=config.COLOR_HUMIDITY_BAND, alpha=config.ALPHA_ALLOWABLE_BAND,
+                  color=config.COLOR_HUMIDITY_BAND_ALLOWABLE, alpha=config.ALPHA_RECOMMENDED_BAND,
                   label="allowable %g-%g %%" % (100 * config.PHI_ALLOW_LOW, 100 * config.PHI_ALLOW_HIGH))
     ax[1].set_ylabel("room RH [%]"); ax[1].set_ylim(0, 90)
     ax[1].legend(loc="upper right", ncol=2, fontsize=8)
+    # DP allowable is pinned to literally equal RH's allowable (same
+    # purple-partner colour as ax[1]'s span above).
     ax[2].axhspan(config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C,
                   color=config.COLOR_HUMIDITY_BAND_ALLOWABLE, alpha=config.ALPHA_RECOMMENDED_BAND,
                   label="allowable %g-%g C" % (config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C))
@@ -365,7 +371,7 @@ def plot_design_comparison_detailed(df_compare, path, best=None):
     # (4) room humidity range (phi_min - phi_max) per design -- allowable only
     a = ax[1, 0]
     a.axhspan(100 * config.PHI_ALLOW_LOW, 100 * config.PHI_ALLOW_HIGH,
-              color=config.COLOR_HUMIDITY_BAND, alpha=config.ALPHA_ALLOWABLE_BAND, label="allowable")
+              color=config.COLOR_HUMIDITY_BAND_ALLOWABLE, alpha=config.ALPHA_RECOMMENDED_BAND, label="allowable")
     lo, hi = 100 * df["phi_min"], 100 * df["phi_max"]
     a.bar(x, hi - lo, w, bottom=lo, color=config.COLOR_ROOM_RH)
     outline_bars(a, hi, lo)
@@ -375,7 +381,7 @@ def plot_design_comparison_detailed(df_compare, path, best=None):
     # (5) dew point range (dp_min - dp_max) per design
     a = ax[1, 1]
     a.axhspan(config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C,
-              color=config.COLOR_HUMIDITY_BAND, alpha=config.ALPHA_ALLOWABLE_BAND, label="allowable")
+              color=config.COLOR_HUMIDITY_BAND_ALLOWABLE, alpha=config.ALPHA_RECOMMENDED_BAND, label="allowable")
     a.axhspan(config.DP_RECOMMENDED_LOW_C, config.DP_RECOMMENDED_HIGH_C,
               color=config.COLOR_HUMIDITY_BAND, alpha=config.ALPHA_RECOMMENDED_BAND, label="recommended")
     lo, hi = df["dp_min"], df["dp_max"]
