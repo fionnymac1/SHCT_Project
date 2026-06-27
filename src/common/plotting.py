@@ -312,11 +312,11 @@ def visualize_all_maps(maps, value="COP_inner", levels=12, save=False):
 
 # --------------------------------------------------------------- Task 3 sweep
 def plot_design_comparison_detailed(df_compare, path, best=None):
-    """Four-panel breakdown of the Task-3 comparison table, covering the
-    columns plot_design_comparison doesn't show: duty-cycle split (AC/VENT/
-    OFF minutes), energy split (compressor vs fan), start counts side by
-    side, and the room humidity range. Designs are ordered by rank (best
-    first) rather than alphabetically, so the trade-off reads left to right."""
+    """Six-panel breakdown of the Task-3 comparison table: duty-cycle split
+    (AC/VENT/OFF minutes), energy split (compressor vs fan), start counts
+    side by side, and the room temperature/humidity/dew-point excursion
+    ranges. Designs are ordered by rank (best first) rather than
+    alphabetically, so the trade-off reads left to right."""
     df = df_compare.sort_values("rank")
     labels = [f"{r}\n{b:.0f} mm" for r, b in zip(df["refrigerant"], df["bore_mm"])]
     is_best = [(r, b) == best for r, b in zip(df["refrigerant"], df["bore_mm"])]
@@ -344,7 +344,7 @@ def plot_design_comparison_detailed(df_compare, path, best=None):
           bottom=df["ac_min_total"] + df["vent_min_total"], color=config.COLOR_OFF, alpha=0.5, label="OFF")
     outline_bars(a, df["ac_min_total"] + df["vent_min_total"] + df["off_min_total"])
     a.set_ylabel("operating time [min / 4 days]")
-    a.set_title("Duty cycle"); a.legend(fontsize=8)
+    a.set_title("Duty cycle"); a.legend(fontsize=8, loc="upper right")
 
     # (2) energy split, stacked
     a = ax[0, 1]
@@ -352,7 +352,7 @@ def plot_design_comparison_detailed(df_compare, path, best=None):
     a.bar(x, df["E_vent_kWh"], w, bottom=df["E_ac_kWh"], color=config.COLOR_VENT, label="fan")
     outline_bars(a, df["E_ac_kWh"] + df["E_vent_kWh"])
     a.set_ylabel("electrical energy [kWh / 4 days]")
-    a.set_title("Energy split"); a.legend(fontsize=8)
+    a.set_title("Energy split"); a.legend(fontsize=8, loc="upper right")
 
     # (3) start counts, grouped
     a = ax[0, 2]
@@ -360,7 +360,7 @@ def plot_design_comparison_detailed(df_compare, path, best=None):
     a.bar(x + w / 4, df["vent_starts_total"], w / 2, color=config.COLOR_VENT, label="VENT starts")
     outline_bars(a, np.maximum(df["ac_starts_total"], df["vent_starts_total"]))
     a.set_ylabel("cycle starts [4 days]")
-    a.set_title("Switching frequency"); a.legend(fontsize=8)
+    a.set_title("Switching frequency"); a.legend(fontsize=8, loc="upper right")
 
     # (4) room humidity range (phi_min - phi_max) per design -- allowable only
     a = ax[1, 0]
@@ -370,25 +370,38 @@ def plot_design_comparison_detailed(df_compare, path, best=None):
     a.bar(x, hi - lo, w, bottom=lo, color=config.COLOR_ROOM_RH)
     outline_bars(a, hi, lo)
     a.set_ylabel("room RH range [%]")
-    a.set_title("Humidity excursion"); a.legend(fontsize=8)
+    a.set_title("Humidity excursion"); a.legend(fontsize=8, loc="upper right")
 
-    # (5) dew point range (dp_min - dp_max) per design
+    # (5) dew point range (dp_min - dp_max) per design -- same pink/purple as
+    # the room RH bar (4), tying the two humidity-family panels together
     a = ax[1, 1]
     a.axhspan(config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C,
               color=config.COLOR_HUMIDITY_BAND, alpha=config.ALPHA_ALLOWABLE_BAND, label="allowable")
     a.axhspan(config.DP_RECOMMENDED_LOW_C, config.DP_RECOMMENDED_HIGH_C,
               color=config.COLOR_HUMIDITY_BAND, alpha=config.ALPHA_RECOMMENDED_BAND, label="recommended")
     lo, hi = df["dp_min"], df["dp_max"]
-    a.bar(x, hi - lo, w, bottom=lo, color=config.COLOR_DEW_POINT)
+    a.bar(x, hi - lo, w, bottom=lo, color=config.COLOR_ROOM_RH)
     outline_bars(a, hi, lo)
     a.set_ylabel("dew point range [C]")
-    a.set_title("Dew point excursion"); a.legend(fontsize=8)
+    a.set_title("Dew point excursion"); a.legend(fontsize=8, loc="upper right")
 
-    ax[1, 2].axis("off")
+    # (6) time within the T band, recommended vs allowable -- green, matching
+    # the T band/colour scheme used in the one-day plots (plot_season).
+    # Paired bars (full colour = recommended, faded = allowable) read the
+    # trade-off more directly than the raw T_min-T_max excursion range did.
+    a = ax[1, 2]
+    a.bar(x - w / 4, 100 * df["frac_T_recommended"], w / 2,
+          color=config.COLOR_RECOMMENDED_BAND, label="recommended")
+    a.bar(x + w / 4, 100 * df["frac_T_allowable"], w / 2,
+          color=config.COLOR_RECOMMENDED_BAND, alpha=0.45, label="allowable")
+    outline_bars(a, np.full(len(x), 100.0))
+    a.axhline(100, color=config.COLOR_NEUTRAL, ls=":", lw=0.9)
+    a.set_ylabel("time in T band [%]")
+    a.set_title("Temperature compliance"); a.legend(fontsize=8, loc="upper right")
 
     for a in ax.flat:
         a.set_xticks(x); a.set_xticklabels(labels, fontsize=8)
-    fig.suptitle("Task 3 design comparison, detail (bronze outline = selected, "
+    fig.suptitle("Task 3 design comparison, detail (gold outline = selected, "
                  "ordered by rank)")
     fig.tight_layout()
     fig.savefig(path, dpi=config.FIGURE_DPI)
@@ -422,7 +435,7 @@ def plot_design_comparison(df_compare, path, best=None):
     outline_best(ax[0], 100)
     ax[0].axhline(100, color=config.COLOR_NEUTRAL, ls=":", lw=0.9)
     ax[0].set_ylabel("time in T band [%]")
-    ax[0].set_title("Task 3 design comparison (bronze outline = selected)")
+    ax[0].set_title("Task 3 design comparison (gold outline = selected)")
     ax[0].legend(fontsize=8)
 
     # RH: allowable only -- no separate recommended target, so one bar per design
@@ -457,7 +470,7 @@ def plot_cost_comparison(df_cost, path, best=None, dates=None):
     """Task 4: stacked electricity cost over the 4 representative days (AC +
     ventilation) per (refrigerant, bore) design, costed against REAL day-ahead
     prices (task4.economics). `best` = (refrigerant, bore_mm) to highlight
-    (bronze outline); df_cost has one row per combo. `dates` = {season: "DD/
+    (gold outline); df_cost has one row per combo. `dates` = {season: "DD/
     MM/YYYY"} (data_io.load_dayahead_prices) -- shown in the subtitle so the
     figure is traceable to the exact price data it used."""
     df = df_cost.sort_values(["refrigerant", "bore_mm"])
@@ -478,7 +491,7 @@ def plot_cost_comparison(df_cost, path, best=None, dates=None):
 
     ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=8)
     ax.set_ylabel("electricity cost  [CHF / 4 representative days]")
-    title = "Task 4 design comparison (bronze outline = Task-3 selection)"
+    title = "Task 4 design comparison (gold outline = Task-3 selection)"
     if dates:
         seasons = [s for s in config.SEASONS if s in dates]
         line1 = ", ".join("%s %s" % (s, dates[s]) for s in seasons[:2])
