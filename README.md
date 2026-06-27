@@ -43,6 +43,15 @@ Optional, exploratory (not required for the main results):
   parameters, explaining the room-temperature overshoot.
 - `python analysis/superheat_subcool_sweep.py` — justifies the fixed
   superheat/subcooling used in the Task-2 map.
+- `python analysis/cop_optimum.py` — runs the true SLSQP inner-cycle optimizer
+  over a $(T_{room}, T_{amb})$ grid and compares it against the constant-approach
+  map (Task 2), justifying why the map doesn't need a per-point solver. **Slow**
+  (several minutes; add `--all-combos` for ~5-7 min more to check every
+  refrigerant/bore). Writes `figures/task2_pinch_optimality.png` and caches the
+  grid to `figures/task2_pinch_grid_cache.npz`; re-render the figure later
+  without re-running the optimizer via `python analysis/cop_optimum.py
+  --from-cache figures/task2_pinch_grid_cache.npz`, or via `main_plots.py`'s
+  `PLOT_TASK2_PINCH_OPTIMALITY` flag.
 - `python src/main_setpoint_sweep.py` — searches the on/off setpoint
   placement (constant shift vs. ambient-scheduled) rather than guessing it.
 
@@ -56,7 +65,7 @@ src/
   task3/       multi-day sweep, ranking, design selection
   task4/       electricity-cost evaluation against real day-ahead prices
   main_*.py    entry points (see table above)
-analysis/      standalone diagnostic/sensitivity scripts (not part of the main pipeline)
+analysis/      standalone diagnostic/sensitivity/optimizer scripts (not part of the main pipeline)
 data/          provided input data (server load, ambient temperature, day-ahead prices)
 results/       CSV outputs (created by the scripts above)
 figures/       PNG outputs (created by the scripts above)
