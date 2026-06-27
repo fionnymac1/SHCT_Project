@@ -68,8 +68,8 @@ def _level_label(name, trace):
     'name 21.0-22.5 C' (an active ambient schedule, SCHED_K>0, moves it)."""
     lo, hi = float(np.min(trace)), float(np.max(trace))
     if hi - lo < 0.05:
-        return "%s %.1f C" % (name, lo)
-    return "%s %.1f-%.1f C" % (name, lo, hi)
+        return "%s %.1f °C" % (name, lo)
+    return "%s %.1f-%.1f °C" % (name, lo, hi)
 
 
 def _mode_spans(t, mode, label):
@@ -136,10 +136,10 @@ def plot_season(r, path, label=None):
     # companion shade = allowable), not the same hue at two opacities.
     ax[0].axhspan(config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C,
                   color=_BAND_ALLOWABLE, alpha=config.ALPHA_RECOMMENDED_BAND,
-                  label="allowable %g-%g C" % (config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C))
+                  label="allowable %g-%g °C" % (config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C))
     ax[0].axhspan(config.T_RECOMMENDED_LOW_C, config.T_RECOMMENDED_HIGH_C,
                   color=_T_BAND, alpha=config.ALPHA_RECOMMENDED_BAND,
-                  label="recommended %g-%g C"
+                  label="recommended %g-%g °C"
                         % (config.T_RECOMMENDED_LOW_C, config.T_RECOMMENDED_HIGH_C))
     # setpoints under the room-T line (room T plotted last -> stays on top)
     ax[0].step(th, tonac, where="post", color=_AC_SETPOINT, ls="--", lw=1.1,
@@ -149,7 +149,7 @@ def plot_season(r, path, label=None):
     ax[0].step(th, toff, where="post", color=_OFF_SETPOINT, ls="--", lw=1.1,
                label=_level_label("cooling OFF", toff))
     ax[0].plot(th, r["T"], color=_T_LINE, lw=1.6, label="room T", zorder=6)
-    ax[0].set_ylabel("temperature [C]")
+    ax[0].set_ylabel("temperature [°C]")
     fig.suptitle("Server room - %s day  (%s)" % (r["season"], label))
     _tlo = min(float(np.min(r["T"])), config.T_ALLOW_LOW_C)
     _thi = max(float(np.max(r["T"])), config.T_ALLOW_HIGH_C)
@@ -171,12 +171,12 @@ def plot_season(r, path, label=None):
     # (same purple-partner colour as panel 2 above).
     ax[2].axhspan(config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C,
                   color=_RH_BAND, alpha=config.ALPHA_RECOMMENDED_BAND,
-                  label="allowable %g-%g C" % (config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C))
+                  label="allowable %g-%g °C" % (config.DP_ALLOW_LOW_C, config.DP_ALLOW_HIGH_C))
     ax[2].axhspan(config.DP_RECOMMENDED_LOW_C, config.DP_RECOMMENDED_HIGH_C,
                   color=_DP_BAND, alpha=config.ALPHA_RECOMMENDED_BAND,
-                  label="recommended %g-%g C" % (config.DP_RECOMMENDED_LOW_C, config.DP_RECOMMENDED_HIGH_C))
+                  label="recommended %g-%g °C" % (config.DP_RECOMMENDED_LOW_C, config.DP_RECOMMENDED_HIGH_C))
     ax[2].plot(th, r["T_dp"], color=_DP_LINE, lw=1.5, label="dew point")
-    ax[2].set_ylabel("dew point [C]")
+    ax[2].set_ylabel("dew point [°C]")
     _dlo = min(float(np.min(r["T_dp"])), config.DP_ALLOW_LOW_C)
     _dhi = max(float(np.max(r["T_dp"])), config.DP_ALLOW_HIGH_C)
     _dpad = 0.05 * (_dhi - _dlo) + 0.5
@@ -218,10 +218,10 @@ def plot_overview(R, path, label=None):
     colors = config.SEASON_COLORS
     ax[0].axhspan(config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C,
                   color=config.COLOR_RECOMMENDED_BAND_ALLOWABLE, alpha=config.ALPHA_RECOMMENDED_BAND,
-                  label="allowable %g-%g C" % (config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C))
+                  label="allowable %g-%g °C" % (config.T_ALLOW_LOW_C, config.T_ALLOW_HIGH_C))
     ax[0].axhspan(config.T_RECOMMENDED_LOW_C, config.T_RECOMMENDED_HIGH_C,
                   color=config.COLOR_RECOMMENDED_BAND, alpha=config.ALPHA_RECOMMENDED_BAND,
-                  label="recommended %g-%g C" % (config.T_RECOMMENDED_LOW_C, config.T_RECOMMENDED_HIGH_C))
+                  label="recommended %g-%g °C" % (config.T_RECOMMENDED_LOW_C, config.T_RECOMMENDED_HIGH_C))
     for s in config.SEASONS:
         th = R[s]["t"] / 60.0
         ax[0].plot(th, R[s]["T"], color=colors[s], lw=1.3, label=s)
@@ -231,7 +231,7 @@ def plot_overview(R, path, label=None):
     _tlo = min(float(_allT.min()), config.T_ALLOW_LOW_C)
     _thi = max(float(_allT.max()), config.T_ALLOW_HIGH_C)
     _pad = 0.05 * (_thi - _tlo) + 0.5
-    ax[0].set_ylabel("room T [C]"); ax[0].set_ylim(_tlo - _pad, _thi + _pad)
+    ax[0].set_ylabel("room T [°C]"); ax[0].set_ylim(_tlo - _pad, _thi + _pad)
     ax[0].set_title("Four representative days - room temperature & humidity (%s)" % label)
     ax[0].legend(loc="upper right", ncol=3, fontsize=8)
     ax[1].axhspan(100 * config.PHI_ALLOW_LOW, 100 * config.PHI_ALLOW_HIGH,
@@ -251,7 +251,7 @@ def plot_overview(R, path, label=None):
     _dlo = min(float(_allDP.min()), config.DP_ALLOW_LOW_C)
     _dhi = max(float(_allDP.max()), config.DP_ALLOW_HIGH_C)
     _dpad = 0.05 * (_dhi - _dlo) + 0.5
-    ax[2].set_ylabel("dew point [C]"); ax[2].set_ylim(_dlo - _dpad, _dhi + _dpad)
+    ax[2].set_ylabel("dew point [°C]"); ax[2].set_ylim(_dlo - _dpad, _dhi + _dpad)
     ax[2].set_xlabel("time of day [h]"); ax[2].set_xlim(0, 24)
     ax[2].legend(loc="upper right", fontsize=8)
     fig.tight_layout(); fig.savefig(path, dpi=config.FIGURE_DPI); plt.close(fig)
@@ -388,7 +388,7 @@ def plot_design_comparison_detailed(df_compare, path, best=None):
     lo, hi = df["dp_min"], df["dp_max"]
     a.bar(x, hi - lo, w, bottom=lo, color=config.COLOR_ROOM_RH)
     outline_bars(a, hi, lo)
-    a.set_ylabel("dew point range [C]")
+    a.set_ylabel("dew point range [°C]")
     a.set_title("Dew point excursion"); a.legend(fontsize=8, loc="upper right")
 
     # (6) time within the T band, recommended vs allowable -- green, matching

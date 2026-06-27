@@ -11,9 +11,15 @@ already wrote and re-draws the bar charts.
 """
 import os
 import pandas as pd
-from common import plotting
+from common import config, plotting
 
 CSV_PATH = os.path.join("results", "task3_design_comparison.csv")
+
+# Match main_plots.py's DPI override exactly (it sets this same constant
+# before plotting) so this script can't drift from it -- config.py's own
+# FIGURE_DPI default currently happens to match, but that's a coincidence
+# this script shouldn't rely on.
+config.FIGURE_DPI = 400
 
 
 def main():
