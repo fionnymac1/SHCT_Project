@@ -285,39 +285,38 @@ ETH_QUAL_PURPLE = eth_colormaps.ETH_QUAL["Purple"]
 ETH_QUAL_GREY = eth_colormaps.ETH_QUAL["Grey"]
 
 # Semantic roles -- plotting.py reads what a colour MEANS, not a raw hex/
-# matplotlib name, so the mapping only has to be decided once, here.
-COLOR_ROOM_T = ETH_QUAL_BLUE
-COLOR_ROOM_RH = ETH_QUAL_PURPLE
+# matplotlib name, so the mapping only has to be decided once, here. Matches
+# plot_season's role mapping (its own local block, see plotting.py) so every
+# OTHER figure reads consistently with it:
+#   Black = the controlled variable (room T) | Grey = neutral/off/secondary data
+#   Blue  = the cooling system (AC)          | Purple = ventilation (VENT)
+#   Red   = the heat source (server load)    | Green = comfort/allowable bands
+COLOR_ROOM_T = ETH_QUAL_BLACK
+COLOR_ROOM_RH = ETH_QUAL_GREY
+COLOR_DEW_POINT = ETH_QUAL_GREY               # dew point trace (band shading is COLOR_HUMIDITY_BAND)
 COLOR_AC = ETH_QUAL_BLUE             # compressor: duty cycle, energy, starts, cost
-COLOR_VENT = ETH_QUAL_GREEN          # ventilation/fan: duty cycle, energy, starts, cost
-COLOR_OFF = ETH_QUAL_BLACK           # neutral: OFF duty-cycle segment
-COLOR_SERVER_LOAD = ETH_QUAL_RED
-COLOR_COOLING_DELIVERED = ETH_QUAL_BLUE
+COLOR_VENT = ETH_QUAL_GOLD         # ventilation/fan: duty cycle, energy, starts, cost
+COLOR_OFF = ETH_QUAL_BLACK            # neutral: OFF duty-cycle segment
 COLOR_RECOMMENDED_BAND = ETH_QUAL_GREEN       # comfort/target + hard-limit band shading (T only);
-                                               # allowable uses the same hue at ALPHA_ALLOWABLE_BAND
-COLOR_HUMIDITY_BAND = ETH_QUAL_PURPLE         # comfort/target + hard-limit band shading (RH, dew
-                                               # point) -- same hue family as COLOR_ROOM_RH
-COLOR_SETPOINT = ETH_QUAL_BLACK               # cooling-OFF setpoint trace
-COLOR_SETPOINT_AC = ETH_QUAL_PURPLE           # AC-on setpoint trace (plot_season panel 1)
-COLOR_SETPOINT_VENT = ETH_QUAL_GOLD           # VENT-on setpoint trace (plot_season panel 1)
+                                               # allowable uses the paired companion shade below
+COLOR_HUMIDITY_BAND = ETH_QUAL_PURPLE          # comfort/target + hard-limit band shading (RH, dew point)
 COLOR_SELECTED_DESIGN = ETH_QUAL_GOLD         # Task-3-selected design highlight outline
 COLOR_NEUTRAL = ETH_QUAL_BLACK                # reference lines, contour overlays, etc.
-COLOR_DEW_POINT = ETH_QUAL_PETROL             # dew point trace (band shading is COLOR_HUMIDITY_BAND)
 
 # Recommended/allowable are nested two-tier categories (inner comfort target
-# vs outer hard limit). Where BOTH tiers exist (T bands/bars, dew-point
-# bands/bars), the outer/allowable tier uses the paired companion shade
-# (eth_colormaps.ETH_QUAL_PARTNER) instead of the same hue at a lower alpha --
-# a literal colour pair, not an opacity trick. RH has no recommended target
-# (allowable only), so it has nothing to pair against and keeps the old
-# same-hue + ALPHA_ALLOWABLE_BAND treatment.
-COLOR_RECOMMENDED_BAND_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Green"]   # T band, outer tier
-COLOR_HUMIDITY_BAND_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Purple"]    # DP band, outer tier
-COLOR_ROOM_T_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Blue"]             # T bar, outer tier
-COLOR_DEW_POINT_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Petrol"]        # DP bar, outer tier
+# vs outer hard limit). EVERY band now uses the paired companion shade
+# (eth_colormaps.ETH_QUAL_PARTNER) for its outer/allowable tier instead of the
+# same hue at a lower alpha -- a literal colour pair, not an opacity trick.
+# RH has no recommended target of its own, so its one band uses the PURPLE
+# partner shade too (the same one dew point's allowable tier uses), reading
+# as "the allowable/outer tier of the humidity-band family" rather than a
+# washed-out allowable of a colour that has no corresponding recommended band.
+COLOR_RECOMMENDED_BAND_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Green"]    # T band, outer tier
+COLOR_ROOM_T_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Black"]              # T bar, outer tier
+COLOR_HUMIDITY_BAND_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Purple"]      # RH band + DP band, outer tier
+COLOR_DEW_POINT_ALLOWABLE = COLOR_ROOM_RH                                    # DP bar, outer tier == RH bar's
 
-ALPHA_RECOMMENDED_BAND = 0.35
-ALPHA_ALLOWABLE_BAND = 0.12   # RH only now (T/DP use the paired colours above)
+ALPHA_RECOMMENDED_BAND = 0.35   # every band now (hue, not alpha, marks the tier)
 
 # One colour per representative season-day (winter/spring/summer/fall),
 # shared across plot_overview and any other multi-season figure.
@@ -329,9 +328,6 @@ SEASON_COLORS = {"winter": ETH_QUAL_BLUE, "spring": ETH_QUAL_GREEN,
 REFRIGERANT_COLORS = {"Propane": ETH_QUAL_BLUE, "R1234yf": ETH_QUAL_GREEN,
                       "DimethylEther": ETH_QUAL_GOLD}
 
-# Extra categorical accent ("g2"): same value as ETH_QUAL_GOLD/WARM_GOLD --
-# referenced, not re-typed, so the three can't drift apart.
-GOLD2 = ETH_QUAL_GOLD
 
 # Sequential (continuous: contour/heatmap) colormaps -- the ONLY consumer is
 # plotting.py's Task-2 COP_inner / Q_AC_kW performance-map contour plots.
