@@ -157,16 +157,28 @@ def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WCOMP, WFAN, COPR):
     dt_h = config.TIME_STEP_MIN / 60.0
     WEL = WCOMP + WFAN   # total instantaneous electrical draw, both equipment
     DP = room.dew_point_C(X)
-    frac_T_recommended = np.mean((T >= config.T_RECOMMENDED_LOW_C) &
-                                  (T <= config.T_RECOMMENDED_HIGH_C))
-    frac_T_allowable = np.mean((T >= config.T_ALLOW_LOW_C) &
-                                (T <= config.T_ALLOW_HIGH_C))
-    frac_phi_allowable = np.mean((PHI >= config.PHI_ALLOW_LOW) &
-                                  (PHI <= config.PHI_ALLOW_HIGH))
-    frac_dp_recommended = np.mean((DP >= config.DP_RECOMMENDED_LOW_C) &
-                                   (DP <= config.DP_RECOMMENDED_HIGH_C))
-    frac_dp_allowable = np.mean((DP >= config.DP_ALLOW_LOW_C) &
-                                 (DP <= config.DP_ALLOW_HIGH_C))
+    # Duration/energy-weighted quantities (frac_*, ac_min/vent_min/off_min,
+    # E_ac_kWh/E_vent_kWh) must exclude index 0: T/PHI/X/MODE/WCOMP/WFAN[0] are
+    # the INITIAL CONDITION at t=0, not the result of integrating over a real
+    # 5-min step (that's index 1..N-1, N-1 = 288 genuine steps/day). Counting
+    # index 0 too treats one instant as a whole extra step -- e.g. it always
+    # inflates off_min by one TIME_STEP_MIN per day (the sim always starts in
+    # OFF), since MODE[0] is the pre-control label, not a simulated interval.
+    # T_min/T_max etc. (the reported extremes) are unaffected -- they ask what
+    # value the room reached, including its legitimate starting state, so they
+    # keep the full array.
+    T_i, PHI_i, DP_i, MODE_i = T[1:], PHI[1:], DP[1:], MODE[1:]
+    WCOMP_i, WFAN_i = WCOMP[1:], WFAN[1:]
+    frac_T_recommended = np.mean((T_i >= config.T_RECOMMENDED_LOW_C) &
+                                  (T_i <= config.T_RECOMMENDED_HIGH_C))
+    frac_T_allowable = np.mean((T_i >= config.T_ALLOW_LOW_C) &
+                                (T_i <= config.T_ALLOW_HIGH_C))
+    frac_phi_allowable = np.mean((PHI_i >= config.PHI_ALLOW_LOW) &
+                                  (PHI_i <= config.PHI_ALLOW_HIGH))
+    frac_dp_recommended = np.mean((DP_i >= config.DP_RECOMMENDED_LOW_C) &
+                                   (DP_i <= config.DP_RECOMMENDED_HIGH_C))
+    frac_dp_allowable = np.mean((DP_i >= config.DP_ALLOW_LOW_C) &
+                                 (DP_i <= config.DP_ALLOW_HIGH_C))
     return {
         "season": season, "t": t, "T": T, "phi": PHI, "X": X, "T_dp": DP, "mode": MODE,
         "Q_cool": QCOOL, "Q_AC": QAC, "Q_dem": QDEM,
@@ -181,16 +193,16 @@ def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WCOMP, WFAN, COPR):
         "frac_dp_allowable": float(frac_dp_allowable),
         "ac_starts": _count_starts(MODE, "AC"),
         "vent_starts": _count_starts(MODE, "VENT"),
-        "ac_min": float(np.sum(MODE == "AC") * config.TIME_STEP_MIN),
-        "vent_min": float(np.sum(MODE == "VENT") * config.TIME_STEP_MIN),
-        "off_min": float(np.sum(MODE == "OFF") * config.TIME_STEP_MIN),
+        "ac_min": float(np.sum(MODE_i == "AC") * config.TIME_STEP_MIN),
+        "vent_min": float(np.sum(MODE_i == "VENT") * config.TIME_STEP_MIN),
+        "off_min": float(np.sum(MODE_i == "OFF") * config.TIME_STEP_MIN),
         # By EQUIPMENT (compressor vs fan), not by mode -- the fan also runs
         # during AC (shared ventilator drives the coil recirc flow), so a
         # mode-based split (sum WEL where MODE=="AC"/"VENT") would silently
         # drop that fan energy. E_ac_kWh = compressor only; E_vent_kWh = fan
         # only, correctly including its AC-mode contribution.
-        "E_ac_kWh": float(np.sum(WCOMP) * dt_h),
-        "E_vent_kWh": float(np.sum(WFAN) * dt_h),
+        "E_ac_kWh": float(np.sum(WCOMP_i) * dt_h),
+        "E_vent_kWh": float(np.sum(WFAN_i) * dt_h),
     }
 
 def simulate_all(cmap=None):

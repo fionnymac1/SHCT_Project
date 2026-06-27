@@ -291,11 +291,11 @@ ETH_QUAL_GREY = eth_colormaps.ETH_QUAL["Grey"]
 #   Black = the controlled variable (room T) | Grey = neutral/off/secondary data
 #   Blue  = the cooling system (AC)          | Purple = ventilation (VENT)
 #   Red   = the heat source (server load)    | Green = comfort/allowable bands
-COLOR_ROOM_T = ETH_QUAL_BLACK
-COLOR_ROOM_RH = ETH_QUAL_GREY
-COLOR_DEW_POINT = ETH_QUAL_GREY               # dew point trace (band shading is COLOR_HUMIDITY_BAND)
+COLOR_ROOM_T = ETH_QUAL_GREEN
+COLOR_ROOM_RH = ETH_QUAL_PURPLE               # deep pink -- comparison-plot RH bars
+COLOR_DEW_POINT = ETH_QUAL_PURPLE             # deep pink -- comparison-plot DP bars (band shading is COLOR_HUMIDITY_BAND)
 COLOR_AC = ETH_QUAL_BLUE             # compressor: duty cycle, energy, starts, cost
-COLOR_VENT = ETH_QUAL_GOLD         # ventilation/fan: duty cycle, energy, starts, cost
+COLOR_VENT = ETH_QUAL_GOLD          # ventilation/fan: duty cycle, energy, starts, cost
 COLOR_OFF = ETH_QUAL_BLACK            # neutral: OFF duty-cycle segment
 COLOR_RECOMMENDED_BAND = ETH_QUAL_GREEN       # comfort/target + hard-limit band shading (T only);
                                                # allowable uses the paired companion shade below
@@ -312,9 +312,9 @@ COLOR_NEUTRAL = ETH_QUAL_BLACK                # reference lines, contour overlay
 # as "the allowable/outer tier of the humidity-band family" rather than a
 # washed-out allowable of a colour that has no corresponding recommended band.
 COLOR_RECOMMENDED_BAND_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Green"]    # T band, outer tier
-COLOR_ROOM_T_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Black"]              # T bar, outer tier
+COLOR_ROOM_T_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Green"]              # T bar, outer tier
 COLOR_HUMIDITY_BAND_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Purple"]      # RH band + DP band, outer tier
-COLOR_DEW_POINT_ALLOWABLE = COLOR_ROOM_RH                                    # DP bar, outer tier == RH bar's
+COLOR_DEW_POINT_ALLOWABLE = eth_colormaps.ETH_QUAL_PARTNER["Purple"]          # DP bar, outer tier (paired light pink)
 
 ALPHA_RECOMMENDED_BAND = 0.35   # every band now (hue, not alpha, marks the tier)
 

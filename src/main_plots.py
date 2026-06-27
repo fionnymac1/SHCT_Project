@@ -10,6 +10,7 @@ dependency (run that script first if its CSV is missing):
 
     PLOT_TASK1_SEASONS/OVERVIEW    results/task1_<season>.csv          <- main.py
     PLOT_TASK2_HEATMAPS            results/ac_map_*.csv                <- main_task2.py
+    PLOT_TASK2_PINCH_OPTIMALITY    figures/task2_pinch_grid_cache.npz   <- analysis/cop_optimum.py
     PLOT_TASK3_SEASONS/OVERVIEW    results/task3_<season>.csv          <- main_task3.py
     PLOT_TASK3_COMPARISON(_DETAIL) results/task3_design_comparison.csv <- main_task3.py
     PLOT_TASK4_COST                results/task4_cost_comparison.csv  <- main_task4.py
@@ -20,17 +21,23 @@ instead of aborting the rest. DPI is applied to every figure uniformly via
 config.FIGURE_DPI, which plotting.py's savefig calls all read from.
 """
 import os
+import sys
 import pandas as pd
 from common import config, data_io, plotting
 from task3 import sweep
 
+# analysis/ is a sibling of src/, not a package under it -- add the repo root
+# so "from analysis import cop_optimum" resolves regardless of cwd.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 # ----------------------------------------------------- which plots to generate
-PLOT_TASK1_SEASONS           = False  # figures/task1_<season>.png            (4 figures)
-PLOT_TASK1_OVERVIEW          = False   # figures/task1_overview.png
+PLOT_TASK1_SEASONS           = False   # figures/task1_<season>.png            (4 figures)
+PLOT_TASK1_OVERVIEW          = False  # figures/task1_overview.png
 PLOT_TASK2_HEATMAPS          = False   # figures/task2_COP_inner_grid.png, task2_Q_AC_kW_grid.png
-PLOT_TASK3_SEASONS           = False   # figures/task3_<season>.png   (selected design, 4 figures)
+PLOT_TASK2_PINCH_OPTIMALITY  = False  # figures/task2_pinch_optimality.png (re-rendered from the cached grid, no SLSQP re-run)
+PLOT_TASK3_SEASONS           = True  # figures/task3_<season>.png   (selected design, 4 figures)
 PLOT_TASK3_OVERVIEW          = True   # figures/task3_overview.png   (selected design)
-PLOT_TASK3_COMPARISON        = True  # figures/task3_comparison.png
+PLOT_TASK3_COMPARISON        = True # figures/task3_comparison.png
 PLOT_TASK3_COMPARISON_DETAIL = True  # figures/task3_comparison_detail.png
 PLOT_TASK4_COST              = False  # figures/task4_cost_comparison.png
 PLOT_TASK4_PRICES            = False  # figures/task4_dayahead_prices.png
@@ -98,6 +105,18 @@ def main():
                 _write("task2_%s_grid" % value, None, path)
         except FileNotFoundError as exc:
             _skip("PLOT_TASK2_HEATMAPS", "results/ac_map_*.csv", exc)
+
+    if PLOT_TASK2_PINCH_OPTIMALITY:
+        try:
+            from analysis.cop_optimum import load_pinch_grid, plot_pinch_check
+            grid = load_pinch_grid(os.path.join(FIGURES_DIR, "task2_pinch_grid_cache.npz"))
+            path = os.path.join(FIGURES_DIR, "task2_pinch_optimality.png")
+            if SAVE_FIGURES:
+                plot_pinch_check(grid, path)
+            _write("task2_pinch_optimality", None, path)
+        except FileNotFoundError as exc:
+            _skip("PLOT_TASK2_PINCH_OPTIMALITY",
+                  "figures/task2_pinch_grid_cache.npz (run analysis/cop_optimum.py first)", exc)
 
     # ---------------------------------------------------------------- Task 3
     df_compare = None
