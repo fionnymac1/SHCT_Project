@@ -1,57 +1,29 @@
 """
-Subcritical vapour-compression cycle - Task-1 stand-in (one bore + refrigerant).
-Generalised over (bore, refrigerant) in Task 3.
+Subcritical vapour-compression cycle - Task-1 stand-in (one bore + refrigerant),
+generalised over (bore, refrigerant) in Task 3.
 
-Per Hint 1 (slide 10): the cycle is NOT re-solved every timestep. We precompute
-COP_inner and cooling capacity Q_AC on a (T_room, T_amb) grid and interpolate
-during the time simulation.
+Per Hint 1: the cycle is not re-solved every timestep -- COP_inner and capacity
+Q_AC are precomputed on a (T_room, T_amb) grid and interpolated during the
+simulation.
 
-Cycle definition (constant approaches, also off-design):
-    T_ev = T_room - DT_APPROACH_EVAP_K
-    T_co = T_amb  + DT_APPROACH_COND_K
-    1: compressor suction  = sat. vapour at T_ev + superheat
-    2: discharge           = isentropic to p_co, corrected by eta_is
-    3: condenser outlet    = sat. liquid at T_co (minus subcooling)
-    4: evaporator inlet    = isenthalpic expansion (h4 = h3)
-    q_evap = h1 - h4   (refrigerating effect, kJ/kg)
-    w_comp = h2 - h1   (specific work,        kJ/kg)
-    COP_inner = q_evap / w_comp,   Q_AC = m_dot * q_evap
+Cycle (constant approaches, also off-design): T_ev = T_room - DT_APPROACH_EVAP_K,
+T_co = T_amb + DT_APPROACH_COND_K. 1: suction = sat. vapour at T_ev + superheat;
+2: discharge = isentropic to p_co, corrected by eta_is; 3: condenser outlet =
+sat. liquid at T_co (minus subcooling); 4: isenthalpic expansion (h4 = h3).
+q_evap = h1-h4, w_comp = h2-h1, COP_inner = q_evap/w_comp, Q_AC = m_dot*q_evap.
 
 Minimum-pressure-ratio envelope (p_co/p_ev >= MIN_PRESSURE_RATIO): at low lift
-the natural ratio falls below the limit. We then CLAMP the condenser pressure
-up to MIN_PRESSURE_RATIO * p_ev (compressor holds a minimum head); the cycle
-stays operable at a COP penalty. Without this there is an uncooled gap in mild
-weather (ambient too warm for free cooling, lift too small for the envelope).
+the natural ratio falls below the limit, so the condenser pressure is clamped
+up to MIN_PRESSURE_RATIO * p_ev (a COP penalty, not an uncooled gap).
 
-Inner COP optimisation (lecture #3 standard form)
-    decision variables : superheat dT_sh, subcooling dT_sc
-                         (T_ev, T_co are fixed by the constant-approach assumption,
-                          so they are NOT free decision variables in this model)
-    objective          : maximise COP_inner = q_evap / w_comp
-    constraints        : dT_sh >= dT_sh,min     (dry suction; compressor protection)
-                         dT_sc <= T_co - T_amb  (sink bound; subcool only toward ambient)
-                         p_co / p_ev >= 2       (compressor envelope; see clamp above)
-                         T_dis <= T_dis,max     (discharge-temperature limit)
-    solution           : the optimum lies on (or near) the constraint boundaries, so the
-                         map is built at FIXED dT_sh, dT_sc (no per-point solver).
-                         Verified in analysis/superheat_subcool_sweep.py:
-                           dT_sc: COP_inner is monotone increasing in subcool for all
-                             three refrigerants, all the way to the sink bound
-                             T_co - T_amb (+3.4..5.8 % over the swept range). The map
-                             does NOT use that bound, though: DELTA_T_SUBCOOL_K = 5 K
-                             (config.py) is a deliberately conservative half-of-the-bound
-                             pick, leaving a physical cold-end pinch at the condenser
-                             exit rather than letting the liquid approach T_amb with
-                             zero margin.
-                           dT_sh -> lower bound  dT_sh,min    : COP_inner is nearly flat
-                             and refrigerant-dependent in sign (Propane/R1234yf +, DME -),
-                             so the dry-suction minimum is chosen; it is within ~1-3 % of
-                             optimal for every fluid.
-                         Both decisions are precomputed into the (T_room,T_amb) map
-                         (Hint 1); the time simulation never re-optimises the cycle.
+Superheat/subcooling are fixed, not optimised per point -- justified in
+analysis/superheat_subcool_sweep.py (COP_inner is monotone in subcool, so the
+map deliberately stays conservative of the sink bound; it's nearly flat and
+fluid-dependent in sign for superheat, so the dry-suction minimum is used) and
+checked against the true per-point optimum in analysis/cop_optimum.py (the
+pinch floors are the binding constraint almost everywhere).
 
 States via the course wrapper Fluid_CP.state (Eh='CBar' -> degC, bar, kJ/kg).
-Compressor mass flow + isentropic efficiency from the provided module.
 """
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
@@ -140,16 +112,12 @@ def default_grids():
 
 def build_map(T_room_grid=None, T_amb_grid=None, bore_mm=None, refrigerant=None):
     """Precompute Q_AC, COP_inner over a (T_room, T_amb) grid, each wrapped in a
-    RegularGridInterpolator (Hint 1). With no grid args this uses a WIDE
-    stand-in range (Task 1's single-bore demo run, which can overshoot the
-    acceptable band); main_task2.py / Task 3 instead pass the narrower,
-    data-driven grid from default_grids() above.
+    RegularGridInterpolator (Hint 1). With no grid args this uses a wide
+    stand-in range; main_task2.py / Task 3 pass the narrower, data-driven grid
+    from default_grids() instead.
 
-    Each grid point uses cycle_point's constant-approach cycle. This is already
-    the optimum, not just a stand-in: cycle_opt.optimize_cop (the SLSQP inner
-    optimisation over T_ev/T_co) verifies that the pinch floors are the binding
-    constraint everywhere, so the floored constant-approach point and the true
-    optimum coincide (see cycle_opt.py's __main__ self-test)."""
+    Each grid point uses cycle_point's constant-approach cycle -- already the
+    optimum, not just a stand-in (see analysis/cop_optimum.py)."""
     if T_room_grid is None:
         T_room_grid = np.arange(13.0, 36.01, 1.0)   # widened: 18-27 band pushes T_room up; don't extrapolate the AC map
     if T_amb_grid is None:

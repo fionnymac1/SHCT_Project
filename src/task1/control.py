@@ -28,57 +28,29 @@ MIN_STANDSTILL_STEPS = max(1, math.ceil(
 
 
 # ----------------------------------------------------------------------------
-# No-damper single-flow switch (Task-1 design EXPERIMENT; owned here so the whole
-# experiment reverts by restoring control.py from its copy -- nothing else to undo).
-#
-# The two modes share ONE ventilator (the section-5 coupling constraint). WITH a
-# damper/VFD that fan delivers TWO flows: a gentle design flow for free cooling
-# (config.VENT_FLOW_DESIGN_M3S, sized so a single VENT step cannot overshoot the
-# low band) and the much higher recirc flow the AC coil needs
-# (flow_limits.ac_fan_flow_from_map, sized to hold the coil-outlet pinch above
-# T_ev). WITHOUT a damper the fan has a SINGLE operating point, so both modes must
-# run at the SAME flow.
-#
-#   VENT_USES_AC_FLOW = True  -> NO-DAMPER test: VENT is forced to the per-combo AC
-#                                recirc flow. PHYSICS WARNING: at that flow the room
-#                                time constant tau = M_air/(rho*V) collapses to ~1
-#                                timestep, so one VENT step drives the room most of
-#                                the way to ambient -> cold-season undershoot and
-#                                chatter (verified: a single winter VENT step lands
-#                                ~11 C at bore30, ~3 C at bore50). The two-setpoint
-#                                staging in decide() is UNCHANGED -- only the flow.
-#   VENT_USES_AC_FLOW = False -> baseline two-flow design (damper/VFD).
-#
-# simulation.py reads this via getattr(control, ...), so restoring the ORIGINAL
-# control.py (which lacks these symbols) silently falls back to the two-flow baseline.
+# Single-flow alternative (tested, not adopted -- see "two flows on one
+# ventilator" in the report). With a damper/VFD the shared fan delivers two
+# flows: gentle for free cooling, high for AC recirculation. Without one, both
+# modes share a single operating point. VENT_USES_AC_FLOW=True forces VENT
+# onto the AC recirc flow, collapsing the room's time constant to ~1 step and
+# causing cold-season undershoot/chatter -- the experiment that justified
+# keeping the two-flow design.
 VENT_USES_AC_FLOW = False
 
 
 def vent_flow_m3s(V_AC_fan, V_vent_design):
-    """Operating ventilation flow under the single-ventilator coupling.
-    decide() picks the MODE; this picks the FLOW that mode runs at. No damper
-    (VENT_USES_AC_FLOW=True) -> VENT is forced to the AC recirc flow V_AC_fan;
-    otherwise the gentle design flow V_vent_design."""
+    """Operating ventilation flow: the AC recirc flow if VENT_USES_AC_FLOW
+    (no-damper test), else the gentle design flow."""
     return V_AC_fan if VENT_USES_AC_FLOW else V_vent_design
 
 
 # ----------------------------------------------------------------------------
-# Ambient-scheduled relay setpoints (Task-1 design EXPERIMENT; owned here, same
-# revert-by-copy contract). In hot weather the compressor's mandatory standstill
-# lets the room slew up uncooled (VENT cannot assist when ambient >= room); the
-# peak is ~ T_OFF + Q_server * t_standstill / (M*cp). Shifting the WHOLE relay band
-# DOWN in hot weather lowers that peak ~1:1 -> hard-limit (35 C) margin. It does
-# NOT shrink the standstill swing (~8-14 K at peak load, wider than the 9 K
-# recommended band), so it buys safety margin, not recommended-band compliance,
-# and it does NOT help the cold-season single-flow VENT crash (that needs a lower
-# flow, not a setpoint).
-#
-#   T_set(T_amb) = T_set0 - shift,  shift = SCHED_G + SCHED_K * max(0, T_amb - T*)
-#   clamped so T_OFF never drops below SCHED_T_OFF_FLOOR (do not trade an upper
-#   breach for a lower one). SCHED_G is a CONSTANT (ambient-independent) shift =
-#   the "fixed-setpoint" arm of the tuning sweep; SCHED_K / SCHED_T_STAR are the
-#   ambient ramp. SETPOINT_SCHEDULE = False -> decide() uses the config constants
-#   unchanged (restoring control.py from its copy also fully reverts this).
+# Ambient-scheduled relay setpoints (the placement search behind the report's
+# "Setpoint placement" sensitivity figure). T_set(T_amb) = T_set0 - shift,
+# shift = SCHED_G + SCHED_K*max(0, T_amb - T*), clamped so T_OFF never drops
+# below SCHED_T_OFF_FLOOR. SCHED_G is the adopted flat shift (1 K); SCHED_K/
+# SCHED_T_STAR are an (unused, K=0) ambient-ramp alternative that was tested
+# and didn't improve on the flat shift.
 SETPOINT_SCHEDULE = True
 SCHED_G = 1.0             # constant downward shift of the whole relay band [K]
 SCHED_K = 0.0             # extra downward shift per K of ambient above T* [K/K]

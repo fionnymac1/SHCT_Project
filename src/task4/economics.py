@@ -8,26 +8,20 @@ electricity prices (common.data_io.load_dayahead_prices -- one real calendar
 day per representative season, ENTSO-E Swiss bidding zone, hourly). Each
 hour's energy is costed at that hour's actual price, not a flat assumed rate.
 
-Three assumptions this task is responsible for owning (the first two
-previously flagged as placeholders, see notes/Compressor_Model_Bridge.md
-point P7 and notes/NOTES_Task1.md):
+Three assumptions this task owns (see notes/Compressor_Model_Bridge.md point
+P7 for the first two):
 
-  1. Electricity tariff: REAL hourly day-ahead prices (config.FILE_DAYAHEAD_
+  1. Electricity tariff: real hourly day-ahead prices (config.FILE_DAYAHEAD_
      PRICES), converted EUR/MWh -> CHF/kWh via config.EUR_TO_CHF.
-  2. Compressor motor + drive efficiency (config.ETA_MOTOR_ELEC): the
-     compressor model (recip_comp_corr_SP) returns FLUID/shaft power, not the
-     electrical power actually billed. simulate_season's E_ac_kWh is fluid
-     energy; this module converts it to billed electrical energy via
-         E_ac_elec = E_ac_fluid / ETA_MOTOR_ELEC.
-     The ventilation fan's E_vent_kWh is already an electrical-power stand-in
-     (FAN_SPECIFIC_POWER_KW_PER_M3S in task1.simulation), so it is NOT divided
-     by ETA_MOTOR_ELEC.
-  3. Wholesale -> retail markup (config.RETAIL_MARKUP_FACTOR = 2.0): the
-     day-ahead price is what a utility pays on the wholesale market, not what
-     a commercial customer is actually billed (which also includes grid/
-     transport fees and taxes -- roughly 54% of a Swiss bill per Swissgrid).
-     Costs below are therefore day-ahead price x this factor, approximating
-     a real invoice rather than a wholesale-only lower bound.
+  2. Compressor motor + drive efficiency (config.ETA_MOTOR_ELEC): converts the
+     compressor model's fluid/shaft power to billed electrical power via
+     E_ac_elec = E_ac_fluid / ETA_MOTOR_ELEC. The fan's E_vent_kWh is already
+     an electrical stand-in, so it is not divided by this.
+  3. Wholesale -> retail markup (config.RETAIL_MARKUP_FACTOR = 2.0): day-ahead
+     price is wholesale, not the retail tariff actually billed (which also
+     includes grid/transport fees and taxes). Costs below are day-ahead price
+     x this factor, approximating a real invoice rather than a wholesale-only
+     lower bound.
 
 NOT annualised: each representative day's real day-ahead price is specific to
 that one calendar date and does not represent ~91 days of the season the way

@@ -1,24 +1,21 @@
 """
 Outer control-tuning sweep (Task-1 exploration): does ambient-scheduling the
-relay setpoints improve the single-flow controller? Framed as the lecture-3
-standard-form optimisation and SEARCHED, not guessed.
+relay setpoints improve on a flat shift? Searched, not guessed -- this is what
+generates the "Setpoint placement" sensitivity figure in the report.
 
   DOF        : SCHED_G (constant band shift), SCHED_K (ramp slope), SCHED_T_STAR
-  objective  : Task-3 lexicographic key -> max Trec% (4-season mean), then
-               max Tallow% (hard-limit safety margin), then min E_total, then min AC starts
+  objective  : Task-3 lexicographic key (max Trec%, then Tallow%, then min
+               E_total, then min AC starts)
   constraints: rigid shift preserves ordering + deadband; T_OFF >= SCHED_T_OFF_FLOOR
 
-Two arms (compare!):
-  A  fixed setpoints  : SCHED_K = 0, vary the constant shift SCHED_G   (the simpler baseline)
-  B  ambient schedule : SCHED_G = 0, vary (SCHED_T_STAR, SCHED_K)
-Adopt B only if it beats A's best by enough to justify the extra knobs.
+Two arms: A fixed setpoints (SCHED_K=0, vary the constant shift G); B ambient
+schedule (SCHED_G=0, vary T*/K). Adopt B only if it beats A's best by enough
+to justify the extra knobs (it didn't -- the adopted design is arm A, G=1 K).
 
 Run from the repo root (after main_task2.py has rebuilt results/*.csv):
     python src/main_setpoint_sweep.py [refrigerant] [bore] [arm]
-arm in {fixed, sched, both} (default both). Each point = a full four-season sim,
-so the full grid is ~minutes; run 'fixed' first if you want a quick look.
-FLOW_MODE is single-flow (no damper) to match "same flows for AC and VENT";
-set it to 'two' to tune the two-flow controller instead.
+arm in {fixed, sched, both} (default both); each point is a full four-season
+sim, so the full grid takes minutes.
 """
 import sys
 import warnings
@@ -33,7 +30,7 @@ warnings.simplefilter("ignore")     # cold-season VENT-overshoot warnings are ex
 REFRIGERANT = sys.argv[1] if len(sys.argv) > 1 else config.STANDIN_REFRIGERANT
 BORE = float(sys.argv[2]) if len(sys.argv) > 2 else config.STANDIN_BORE_MM
 ARM = sys.argv[3] if len(sys.argv) > 3 else "both"
-FLOW_MODE = "single"                # "single" = no damper (the requested controller); "two" = baseline
+FLOW_MODE = "two"                   # "two" = adopted two-flow (damper) controller; "single" = no-damper test
 
 G_GRID = [0.0, 1.0, 2.0, 3.0]                   # arm A: constant downward shift [K]
 TSTAR_GRID = [24.0, 28.0]                       # arm B: ramp breakpoint [degC]

@@ -102,13 +102,9 @@ def visualize_single_day(r, refrigerant, bore_mm, path=None):
 
 def run_all_designs(refrigerants=None, bores=None, verbose=True):
     """Simulate every (refrigerant, bore) combination. Returns
-    (results_by_design, df_compare): results_by_design[(refrigerant, bore_mm)]
-    = R (per-season dict); df_compare = one row per combo, plus an 'error'
-    column (None on success). A combo whose simulation raises (e.g. the room's
-    moist-air Newton inversion can fail outside its valid range for an
-    oversized/undersized AC) is recorded rather than aborting the whole sweep -
-    a combo that breaks the model is informative in itself, and the other 8
-    combos still need ranking."""
+    (results_by_design, df_compare); df_compare has an 'error' column (None
+    on success). A combo whose simulation raises is recorded rather than
+    aborting the whole sweep, so the other combos still get ranked."""
     refrigerants = config.REFRIGERANTS if refrigerants is None else refrigerants
     bores = config.COMPRESSOR_BORES_MM if bores is None else bores
 
@@ -135,13 +131,10 @@ def run_all_designs(refrigerants=None, bores=None, verbose=True):
 
 def save_energy_by_hour(results_by_design, path=None):
     """Long-form (refrigerant, bore_mm, season, hour, E_ac_kWh, E_vent_kWh)
-    table, one row per (design, season, hour-of-day) -- the resolution Task 4
-    needs to cost energy against REAL hourly day-ahead prices (data_io.
-    load_dayahead_prices), not a flat per-season rate. Built from each
-    simulate_season() result's per-step t/W_comp/W_fan arrays. Split by
-    EQUIPMENT (W_comp/W_fan), not by mode -- the shared ventilator also runs
-    during AC (drives the coil recirc flow), so a mode-based split (W_el
-    where mode=="AC"/"VENT") would mislabel that fan energy as compressor
+    table, the resolution Task 4 needs to cost energy against real hourly
+    day-ahead prices instead of a flat per-season rate. Split by equipment
+    (W_comp/W_fan), not by mode, since the shared ventilator also runs during
+    AC and a mode-based split would mislabel that fan energy as compressor
     energy. Written alongside the comparison CSV in main_task3.py."""
     path = path or os.path.join("results", "task3_energy_by_hour.csv")
     dt_h = config.TIME_STEP_MIN / 60.0
@@ -163,19 +156,16 @@ def save_energy_by_hour(results_by_design, path=None):
 
 
 def score_key(row):
-    """Lexicographic ranking key (smaller = better), per the task sheet's
-    selection criteria in priority order:
-      1. room air condition, hard safety bound first: maximise time within
-         the ALLOWABLE T, RH and dew-point limits (never to be crossed -- a
-         breach here is a hardware-safety failure, worse than merely missing
-         comfort);
-      2. room air condition, comfort target: maximise time within the
-         RECOMMENDED T and dew-point bands (the day-to-day operating goal;
-         RH has no recommended target, only the allowable bound above);
-      3. overall energy demand: minimise total AC + ventilation electricity;
-      4. compressor start/stop cycles: minimise AC starts (mechanical wear).
-    Operating times (ac_min/vent_min) are reported alongside for discussion
-    but not separately scored (largely implied by (1)/(2)/(3))."""
+    """Lexicographic ranking key (smaller = better):
+      1. hard safety: maximise time within the allowable T, RH and dew-point
+         limits (a breach is a hardware-safety failure, weighted worst);
+      2. equipment reliability: maximise time within the recommended T and
+         dew-point bands (RH has no recommended target, only the allowable
+         bound above);
+      3. minimise total AC + ventilation electricity;
+      4. minimise AC start/stop cycles (compressor wear).
+    Operating times are reported alongside but not separately scored, since
+    they're already implied by (3)."""
     return (-min(row["frac_T_allowable"], row["frac_phi_allowable"], row["frac_dp_allowable"]),
             -min(row["frac_T_recommended"], row["frac_dp_recommended"]),
             row["E_total_kWh"], row["ac_starts_total"])

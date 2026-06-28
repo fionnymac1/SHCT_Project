@@ -2,16 +2,11 @@
 Task 1 time-simulation driver: integrate the room ODE under the on/off control
 state machine over each representative season-day at the 5-min control step.
 
-Modelling choice (per task sheet): the AC compressor and the ventilator are
-strictly ON/OFF. While ON each runs at FULL capacity - the compressor flat out
-(full Q_AC at the current operating point), the fan at its single design flow.
-There is NO capacity modulation; the only control is the hysteresis state
-machine in control.py switching between {OFF, VENT, AC}. Hint-2 part-load
-losses therefore enter through the DUTY CYCLE rather than a throttled capacity:
-COP_res is keyed to the demand/capacity ratio Q_server/Q_AC (see cop_res).
-
-AC capacity Q_AC and COP_inner come from the precomputed (T_room,T_amb) map
-(Hint 1, interpolated). Run from the repository root.
+Both actuators are strictly ON/OFF at full capacity; the hysteresis state
+machine in control.py is the only control. Hint-2 part-load loss therefore
+enters through the duty cycle, keyed to Q_server/Q_AC (see cop_res), not a
+throttled capacity. Q_AC and COP_inner come from the precomputed (T_room,
+T_amb) map (Hint 1, interpolated). Run from the repository root.
 """
 import warnings
 import numpy as np
@@ -32,13 +27,10 @@ assert VENT_FLOW_DESIGN_M3S <= flow_limits.v_max_acoustic_m3s() + 1e-9, \
 
 
 def cop_res(cop_inner, Q_demand, Q_AC):
-    """Hint 2 part-load COP. Under on/off the compressor delivers the full Q_AC
-    whenever it runs, so the part-load ratio is NOT a throttled capacity but the
-    time-averaged duty needed to hold the room: PLR = Q_demand / Q_AC, with
-    Q_demand = the load to reject (~ Q_server). Oversized capacity -> small PLR
-    -> the (0.9*PLR + 0.1) denominator bites; this is the Task-3 bore lever.
-    (Keying PLR to Q_cool/Q_AC would give 1.0 here - on/off delivers full Q_AC -
-    and silently delete the penalty.)"""
+    """Hint 2 part-load COP. PLR = Q_demand/Q_AC (demand over installed
+    capacity, not delivered/installed, which would be 1.0 under on/off and
+    erase the penalty). Oversized capacity -> small PLR -> the bore lever in
+    Task 3."""
     if Q_AC <= 0:
         return cop_inner
     plr = min(Q_demand / Q_AC, 1.0)
@@ -157,16 +149,11 @@ def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WCOMP, WFAN, COPR):
     dt_h = config.TIME_STEP_MIN / 60.0
     WEL = WCOMP + WFAN   # total instantaneous electrical draw, both equipment
     DP = room.dew_point_C(X)
-    # Duration/energy-weighted quantities (frac_*, ac_min/vent_min/off_min,
-    # E_ac_kWh/E_vent_kWh) must exclude index 0: T/PHI/X/MODE/WCOMP/WFAN[0] are
-    # the INITIAL CONDITION at t=0, not the result of integrating over a real
-    # 5-min step (that's index 1..N-1, N-1 = 288 genuine steps/day). Counting
-    # index 0 too treats one instant as a whole extra step -- e.g. it always
-    # inflates off_min by one TIME_STEP_MIN per day (the sim always starts in
-    # OFF), since MODE[0] is the pre-control label, not a simulated interval.
-    # T_min/T_max etc. (the reported extremes) are unaffected -- they ask what
-    # value the room reached, including its legitimate starting state, so they
-    # keep the full array.
+    # Duration/energy-weighted quantities exclude index 0: it's the initial
+    # condition at t=0, not a simulated 5-min step, so including it double-counts
+    # one step (e.g. inflates off_min, since MODE[0] is always "OFF"). T_min/max
+    # etc. keep the full array -- they ask what value the room reached, which
+    # legitimately includes the starting state.
     T_i, PHI_i, DP_i, MODE_i = T[1:], PHI[1:], DP[1:], MODE[1:]
     WCOMP_i, WFAN_i = WCOMP[1:], WFAN[1:]
     frac_T_recommended = np.mean((T_i >= config.T_RECOMMENDED_LOW_C) &
@@ -196,11 +183,8 @@ def _summarise(season, t, T, PHI, X, MODE, QCOOL, QAC, QDEM, WCOMP, WFAN, COPR):
         "ac_min": float(np.sum(MODE_i == "AC") * config.TIME_STEP_MIN),
         "vent_min": float(np.sum(MODE_i == "VENT") * config.TIME_STEP_MIN),
         "off_min": float(np.sum(MODE_i == "OFF") * config.TIME_STEP_MIN),
-        # By EQUIPMENT (compressor vs fan), not by mode -- the fan also runs
-        # during AC (shared ventilator drives the coil recirc flow), so a
-        # mode-based split (sum WEL where MODE=="AC"/"VENT") would silently
-        # drop that fan energy. E_ac_kWh = compressor only; E_vent_kWh = fan
-        # only, correctly including its AC-mode contribution.
+        # Split by equipment, not mode: the fan also runs during AC (drives the
+        # coil recirc flow), so a mode-based split would drop that fan energy.
         "E_ac_kWh": float(np.sum(WCOMP_i) * dt_h),
         "E_vent_kWh": float(np.sum(WFAN_i) * dt_h),
     }

@@ -1,13 +1,11 @@
 """
-Task-1 sensitivity study: drivers of the room-temperature OVERSHOOT.
+Task-1 sensitivity study: drivers of the room-temperature overshoot.
 
-Background
-----------
-Under on/off control the room (C = M_air*cp ~ 217 kJ/K, very low) free-heats
-whenever the compressor is OFF. After the AC reaches T_OFF and shuts down it is
-locked out for the minimum standstill (10 min). At ~4.7 kW server load that is
-+1.3 K/min * 10 min ~ +13 K of uncontrolled rise -> the 34 C summer peak. The
-overshoot is therefore a standstill x slew-rate effect, NOT a hysteresis effect.
+Under on/off control the room's low thermal mass (~217 kJ/K) free-heats
+whenever the compressor is OFF; after AC shuts down it's locked out for the
+minimum standstill (10 min), and at ~4.7 kW server load that's already ~13 K
+of uncontrolled rise -> the summer peak. The overshoot is a standstill x
+slew-rate effect, not a hysteresis effect.
 
 This script sweeps the candidate design/model parameters one-at-a-time from the
 config baseline and reports, over all four season-days:

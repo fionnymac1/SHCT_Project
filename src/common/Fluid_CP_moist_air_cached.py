@@ -1,25 +1,17 @@
 """
 Cached wrapper around the course-provided common.Fluid_CP_moist_air module.
-Changes NO numerical output -- only avoids redundant CoolProp calls.
+Changes no numerical output -- only avoids redundant CoolProp calls.
 
-Root cause (found by profiling one simulate_season() call -- 289 timesteps,
-278.8s total): Fluid_CP_moist_air.state() recomputes three CoolProp
-reference-state lookups (h0, s0, u0 at the fixed triple point T0/p0) on
-EVERY call, purely to offset the returned enthalpy/entropy to that
-reference. These three values depend only on `fluid`, never on the actual
-query, so for any fixed fluid they are the same every time. state_moist()
-compounds this: it ALSO recomputes two more such reference calls (h_a0,
-h_w0) on every call of its own, on top of calling state() repeatedly inside.
-Result: 31,927 calls to state() for one simulated day, consuming 258 of the
-278.8 total seconds (93%) -- almost entirely this redundant recomputation,
-not the "real" property lookups simulate_season actually needs.
+Root cause (profiled at 278.8s for one simulated day): state() recomputes
+three CoolProp reference-state lookups on every call, purely to offset the
+returned enthalpy/entropy -- these depend only on `fluid`, never the actual
+query, so they're identical every time for a fixed fluid. 93% of runtime was
+this redundant recomputation (31,927 calls), not the real property lookups.
 
-The original Fluid_CP_moist_air.py is left untouched on disk. This module
+The original Fluid_CP_moist_air.py is left untouched on disk; this module
 monkey-patches its internal `state` name at import time, so state_moist()'s
-OWN internal calls (which resolve the bare name `state` in that module's
-global namespace, not this one -- this is where most of the 31,927 calls
-actually originate) are cached too, not just calls made through this
-wrapper's re-exported `state`.
+own internal calls (which resolve `state` in that module's namespace, not
+this one) are cached too, not just calls made through this wrapper directly.
 """
 from functools import lru_cache
 from common import Fluid_CP_moist_air as _orig

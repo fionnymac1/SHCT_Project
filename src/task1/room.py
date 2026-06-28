@@ -1,38 +1,22 @@
 """
-Room moist-air model - Exercise 11 extended (Task 1).
+Room moist-air model (Task 1), extending Exercise 11's room to a server room.
 
-State per kg dry air:  z = [h* (kJ/kg_a), m_w (kg)] ;  X = m_w / M_AIR.
-    Energy:  M_AIR * dh*/dt = Q_server(t) - Q_cool                    [kW]
-    Water:           dm_w/dt = (X_sink - X) * m_dot                   [kg/s]
+State per kg dry air: z = [h* (kJ/kg_a), m_w (kg)]; X = m_w / M_AIR.
+    Energy: M_AIR * dh*/dt = Q_server(t) - Q_cool   [kW]
+    Water:  dm_w/dt = (X_sink - X) * m_dot           [kg/s]
 
-This is the Exercise-11 room model - same state vector, same energy/water
-balances, same condensation two-case - extended for the server room with:
-time-varying server load Q_server (replaces the fixed envelope Q), an OFF mode,
-and a VENT mode that exchanges enthalpy + water with ambient.
+Modes (mutually exclusive, shared fan; both actuators ON/OFF at full capacity,
+self-limiting since Q_cool is recomputed at the current room enthalpy each step):
+  OFF : no exchange.
+  AC  : coil at T_AC, condensation two-case X_sink = min(X, Xsat(T_AC)).
+  VENT: ambient air (T_amb, phi 0.60) at the fixed design flow.
 
-Modes (mutually exclusive, shared fan). Both actuators are strictly ON/OFF and
-run at FULL capacity while on; the cooling rate is recomputed at the current
-room enthalpy each ODE step so it self-limits physically:
-  OFF : no exchange (only the server heat).
-  AC  : coil at T_AC, condensation two-case X_sink = min(X, Xsat(T_AC));
-        Q_cool = Q_AC (full compressor capacity), recirculation m_dot floats.
-  VENT: ambient air (T_amb, phi 0.60) at the fixed design flow rhoV.
-
-Psychrometrics
---------------
-All moist-air states come from the course module
-Fluid_CP_moist_air.state_moist (CoolProp, p = 1 bar), exactly as Exercise 11:
-forward via (T,phi)/(T,X), inversion via (h*,X) (solution cell 16).
-
-ONE deviation from Ex11's call pattern, forced by a verified numerical trap:
-state_moist's (T,X) branch is unreliable AT SATURATION - it reconstructs the
-water partial pressure on the saturation line and CoolProp resolves the wrong
-phase, returning a wrong h* (e.g. 5.90 instead of ~20.8 kJ/kg at 6 degC) or
-raising. The AC coil outlet is saturated whenever it dehumidifies, so a
-saturated state (X >= X_sat) is evaluated through the robust (T,phi=1) entry
-instead, which is exact at every temperature. Ex11 never hit this because its
-coil sat at 12 degC, where the (T,X) branch happens to resolve correctly;
-this room's coil runs colder (T_AC ~ T_room - 9).
+Psychrometrics: all moist-air states come from Fluid_CP_moist_air.state_moist
+(CoolProp, p = 1 bar). One deviation from the straightforward call pattern:
+state_moist's (T,X) branch is unreliable AT SATURATION (wrong phase/h* near
+the saturation line), so any saturated state (X >= X_sat, which the AC coil
+outlet hits whenever it dehumidifies) is evaluated via the robust (T,phi=1)
+entry instead.
 
 Units: degC, kJ/kg_a, kg, kg/s, s, kW. p = 1 bar.
 """
@@ -61,22 +45,13 @@ def Xsat(T_C):
 
 
 def dew_point_C(X, p_bar=1.0):
-    """Dew point temperature [degC] at humidity ratio X [kg_w/kg_a], total
-    pressure p_bar [bar]. Magnus-Tetens formula (saturation vapor pressure
-    over LIQUID water, the standard meteorological/HVAC dew-point convention
-    -- distinct from "frost point", which uses the ice curve), inverted for T.
-
-    NOT computed via Fluid_CP_moist_air/CoolProp: state_moist relies on
-    saturated-LIQUID water properties (state(["T","x"],[T,0.],"water",...)),
-    which CoolProp cannot provide below the triple point (0.01 degC) -- there
-    is no stable saturated-liquid state there, so state_moist raises for any
-    dew point below 0 degC. Since this room's allowable dew-point band
-    (config.DP_ALLOW_LOW_C = -9 degC) is itself sub-zero, the course tool
-    cannot cover the needed range at all, regardless of approach. The Magnus
-    formula is closed-form (no CoolProp, no solver) and IS the standard
-    dew-point definition through this range, not an approximation adopted to
-    work around the limitation. Validated against Fluid_CP_moist_air/CoolProp
-    in the region both can compute (T_dp >= 0 degC): agreement within 0.04 degC.
+    """Dew point [degC] at humidity ratio X [kg_w/kg_a] via Magnus-Tetens
+    (saturation vapor pressure over liquid water, the standard meteorological
+    dew-point definition, not an approximation). Not computed via CoolProp:
+    state_moist needs saturated-liquid water below the 0.01 degC triple point,
+    which CoolProp can't provide, and the allowable band (-9 degC) needs that
+    range. Validated against Fluid_CP_moist_air where both can compute
+    (T_dp >= 0 degC): agreement within 0.04 degC.
     """
     p_w_hpa = X * p_bar * 1000.0 / (0.622 + X)   # vapour partial pressure [hPa]
     lnr = np.log(p_w_hpa / 6.112)
@@ -89,19 +64,11 @@ _H_W0 = float(Fmoist.state(["T", "p"], [0.01, 611.7e-5], "water", "CBar")["h"])
 
 
 def hstar(T_C, X):
-    """h* [kJ/kg_a] at (T, X), valid on the WHOLE plane incl. the fog region.
-
-    Three regimes about the saturation line X_sat(T):
-      X <  X_sat : unsaturated -> module forward (T, X).
-      X ~ X_sat  : saturated   -> robust (T, phi=1) entry (the (T,X) branch is
-                   numerically unreliable AT saturation; see module docstring).
-      X >  X_sat : OVERSATURATED / fog. state_moist returns NaN here. The vapour
-                   holds only X_sat; the excess (X - X_sat) has condensed to
-                   liquid carrying h_w_liq(T), so
-                       h* = h*_sat(T) + (X - X_sat) * h_w_liq(T)
-                   (standard Mollier fog enthalpy). Continuous with the saturated
-                   value - the added term vanishes at X = X_sat.
-    """
+    """h* [kJ/kg_a] at (T, X), valid on the whole plane including fog (X > X_sat,
+    where state_moist returns NaN): the standard Mollier fog enthalpy,
+    h* = h*_sat(T) + (X - X_sat) * h_w_liq(T), continuous with the saturated
+    value. Saturated/near-saturated states use the robust (T, phi=1) entry
+    (the (T,X) branch is unreliable there; see module docstring)."""
     sat = Fmoist.state_moist(["T", "phi"], [T_C, 1.0])     # X_sat and h*_sat
     X_sat, h_sat = float(sat["X"]), float(sat["h*"])
     if X >= X_sat - 1e-9:                                  # saturated or fog
@@ -118,16 +85,12 @@ def initial_state():
 
 
 def invert(h_, mw):
-    """Recover (T, phi, X) from the state (h*, m_w).
-
-    Exercise 11 (cell 16) uses state_moist(["h*","X"]); that built-in inversion
-    queries liquid water at the dew point, so it is only valid for a dew point
-    above CoolProp's 0.01 degC triple point.  The AC dries this room to
-    ~11-26 % RH (dew point < 0 degC) in every season, where that call CRASHES.
-    Instead, T is found by solving the module's OWN forward h*(T,X) = h_ with a
-    seeded fsolve (the Ex7 fluid-helper idiom, fsolve(hilf, 303.)), using only the
-    robust unsaturated (T,X) evaluation.  This is an exact inverse of the forward
-    (no reference bias); phi is then read off the module."""
+    """Recover (T, phi, X) from the state (h*, m_w). Exercise 11's built-in
+    inversion (state_moist(["h*","X"])) needs liquid water at the dew point,
+    which crashes once the AC dries the room below 0 degC dew point (every
+    season here). Instead, T is found by solving the module's own forward
+    h*(T,X) = h_ with a seeded fsolve -- an exact inverse, no reference bias.
+    """
     X = mw / M_AIR
     T_seed = (h_ - 2501.0 * X) / (1.006 + 1.86 * X)    # closed-form guess
     def res(T):                                         # residual on module forward
@@ -138,13 +101,11 @@ def invert(h_, mw):
 
 
 # --------------------------------------------------------- closure B (coil outlet)
-# The AC fan runs at a FIXED recirculation flow per (bore, refrigerant) -- m_dot_AC,
-# sized in flow_limits.ac_fan_flow_from_map() and passed in by simulation.py -- so the
-# coil-outlet air state is the DEPENDENT variable: outlet enthalpy follows from the
-# energy balance  h_sink = h_room - Q_AC/m_dot_air , and (T_AC, X_sink) sit on the
-# saturation line when the coil condenses (else dry at X_room), floored at the
-# physical air pinch  T_ev + DT_APPROACH_AIR_K  (below it the air would need an
-# infinite coil -> the fan is undersized for that Q_AC at this point).
+# AC fan runs at a fixed recirc flow per (bore, refrigerant) (sized in
+# flow_limits.ac_fan_flow_from_map), so the coil outlet is the dependent
+# variable: h_sink = h_room - Q_AC/m_dot_air, with (T_AC, X_sink) on the
+# saturation line if condensing, floored at T_ev + DT_APPROACH_AIR_K (the
+# fan is undersized for that Q_AC below this floor).
 _SAT = None   # cached (T, h_sat, X_sat) along the saturation line, built once
 
 
@@ -208,18 +169,11 @@ def rhs(z, t, mode, p):
         dhdt = (Q_server - Q_cool) / M_AIR
         dmwdt = (p["X_sink"] - X) * m_dot
     elif mode == "VENT":
-        # The fan is ON, so it ALWAYS moves the fixed design flow rhoV -- the
-        # air exchange does not depend on the sign of the enthalpy difference.
-        # Q_cool = rhoV*(h_-h_amb) self-limits on its own: it -> 0 as the room
-        # approaches ambient enthalpy and goes NEGATIVE (the room warms) when
-        # ambient carries more enthalpy than the dried room -- which, with the
-        # AC having dried the room to low X, happens on cool-but-humid
-        # spring/summer/fall ambient even though T_amb < T_room. A temperature-
-        # only controller cannot sense this, so it is the physically correct
-        # penalty for venting enthalpically-worse air, NOT something to suppress.
-        # Crucially the LATENT exchange (dmwdt) must be tracked at full flow
-        # regardless of sign: gating m_dot on denom>0 silently dropped the
-        # humidity exchange the running fan must cause (graded; see module head).
+        # Fan is on, so it always moves the fixed design flow rhoV regardless
+        # of the enthalpy sign. Q_cool can go NEGATIVE (room warms) when ambient
+        # carries more enthalpy than the AC-dried room, even if T_amb < T_room --
+        # a real effect a temperature-only controller can't sense, not a bug to
+        # suppress. The latent exchange (dmwdt) must track at full flow too.
         m_dot = p["rhoV"]                      # fixed design air flow (fan on)
         Q_cool = m_dot * (h_ - p["h_amb"])     # self-limits; may be < 0 (warming)
         dhdt = (Q_server - Q_cool) / M_AIR

@@ -106,12 +106,10 @@ def plot_season(r, path, label=None):
 
     # This figure uses its OWN arrangement of the ETH qualitative palette
     # (distinct from the project-wide config.COLOR_* mapping used by every
-    # other plot), one colour per ROLE rather than per panel:
-    #   Blue   = the cooling system    -> AC setpoint line, AC spans, "cooling delivered"
-    #   Red    = the heat source       -> server load
-    #   Purple = ventilation           -> VENT setpoint line, VENT spans
-    #   Grey   = neutral "off" state   -> cooling-OFF line
-    #   Black  = the controlled variable -> room T
+    # other plot), one colour per role: black = room T (the controlled
+    # variable), blue = the cooling system (AC setpoint/spans, cooling
+    # delivered), gold = VENT setpoint/spans, red = server load, grey =
+    # cooling-OFF and the RH/dew-point lines, green = comfort/allowable bands.
     _BAND = config.ETH_QUAL_GREEN
     _BAND_ALLOWABLE = config.COLOR_RECOMMENDED_BAND_ALLOWABLE   # paired light-green outer tier (T)
     _HUMID_BAND = config.COLOR_HUMIDITY_BAND                      # purple (DP recommended tier)

@@ -1,35 +1,24 @@
 """
 Inner COP optimisation in the course's Lecture-3 / Exercise-3 standard form.
 
-Exercise 3 optimises the DECISION VARIABLES [T_co, T_ev] (minimising 1/COP with
-scipy SLSQP) while superheat and subcooling are GIVEN CONSTANTS and the approach
-temperatures are MINIMUM-pinch inequality constraints. Because COP is monotone
-(increasing in T_ev, decreasing in T_co) the optimum sits on the tightest
-approach constraint  ->  T_ev* = T_room - EVAP,  T_co* = T_amb + COND. That is
-exactly the constant-approach cycle in task2/cycle.py, so the time simulation
-uses the precomputed map (Hint 1) and never calls an optimiser. This module is
-the offline standard-form statement + verification for the report -- it is a
-diagnostic, not part of the main pipeline (hence living in analysis/, like
-sensitivity.py and superheat_subcool_sweep.py).
+Exercise 3 optimises decision variables [T_co, T_ev] (minimising 1/COP via
+SLSQP) with fixed superheat/subcooling and minimum-pinch approach constraints.
+Since COP is monotone in the lift, the optimum sits on the tightest approach
+constraint -- exactly the constant-approach cycle in task2/cycle.py. This
+module is the offline verification of that: a diagnostic, not part of the
+main pipeline (hence analysis/, like sensitivity.py).
 
-Standard form (per timestep, given T_room, T_amb, bore, refrigerant):
-    decision variables : T_co, T_ev                        [degC]
-    constants (w)       : dT_sh, dT_sc, bore, refrigerant, T_room, T_amb
-    objective           : max COP = q_evap / w_comp        (=> min 1/COP)
-    constraints         : T_room - T_ev >= EVAP            (evaporator approach floor)
-                          T_co  - T_amb >= COND            (condenser approach floor)
-                          p_co / p_ev   >= MIN_PRESSURE_RATIO
-                          T_amb < T_co < T_crit ,  T_ev < T_room   (bounds; subcritical)
+Standard form (given T_room, T_amb, bore, refrigerant): maximise
+COP = q_evap/w_comp over T_co, T_ev, subject to T_room-T_ev >= EVAP,
+T_co-T_amb >= COND, p_co/p_ev >= MIN_PRESSURE_RATIO, and T_amb < T_co < T_crit.
+Differs from Ex.3 in replacing the per-location HX pinch (which needs
+secondary-fluid glides we don't have) with one lumped approach floor per HX,
+and adding the min-pressure-ratio envelope.
 
-Difference vs Ex.3: Ex.3 resolves the pinch at every HX location, which needs the
-source/sink GLIDES (secondary-fluid flows). We do not have the air flows, so the
-per-location pinch is replaced by one lumped approach floor per HX, and the
-min-pressure-ratio envelope (absent in Ex.3) is added.
-
-Runnable directly (path self-bootstraps): python analysis/cop_optimum.py
-Writes figures/task2_pinch_optimality.png and caches the grid to
-figures/task2_pinch_grid_cache.npz (so main_plots.py can re-render the figure
-without re-running the optimizer -- see PLOT_TASK2_PINCH_OPTIMALITY there).
+Runnable directly: python analysis/cop_optimum.py. Writes
+figures/task2_pinch_optimality.png and caches the grid to
+figures/task2_pinch_grid_cache.npz (see PLOT_TASK2_PINCH_OPTIMALITY in
+main_plots.py to re-render without re-running the optimizer).
 """
 import os
 import sys

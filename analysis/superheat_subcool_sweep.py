@@ -1,32 +1,25 @@
 """
-Inner-cycle DOF study: justifies the FIXED superheat and subcooling used in the COP map
-(see common/config.py and the standard-form block in task2/cycle.py).
+Inner-cycle DOF study: justifies the fixed superheat and subcooling used in the
+COP map (common/config.py, task2/cycle.py).
 
-Why this script exists
-----------------------
-The task asks for "COP-optimal operation at each point in time". The cycle's only
-candidate free decision variables are superheat (dT_sh) and subcooling (dT_sc) - the
-evaporation/condensation temperatures are pinned by the constant-approach assumption.
-This script sweeps both at a representative operating point for all three refrigerants
-and shows that the COP optimum is NOT interior but sits on (or near) the constraint
-boundaries, so the map can be built at fixed dT_sh/dT_sc with no per-point solver
-(Hint 1):
+The cycle's only candidate free decision variables are superheat (dT_sh) and
+subcooling (dT_sc) -- T_ev/T_co are pinned by the constant-approach assumption.
+This script sweeps both at a representative point for all three refrigerants,
+showing the COP optimum sits on (or near) the constraint boundaries, so the
+map can be built at fixed dT_sh/dT_sc with no per-point solver:
 
-  * dT_sc: COP_inner is monotone INCREASING in subcooling for every refrigerant, so the
-    optimum is the upper bound. Subcooling can only cool the liquid toward ambient, so
-    that bound is  dT_sc,max = T_co - T_amb = the condenser approach (Lecture #10:
-    "exploit subcooling as long as the condensation temperature must not be increased").
-    The map does NOT sit at that bound: config.DELTA_T_SUBCOOL_K = 5 K is a deliberately
-    conservative half-of-the-bound pick, leaving a physical cold-end pinch at the
-    condenser exit instead of letting the liquid approach T_amb with zero margin.
-  * dT_sh: COP_inner is nearly flat in superheat AND refrigerant-dependent in SIGN, so
-    there is no common optimum. eta_is from recip_comp_corr_SP depends only on the
-    pressure ratio (= f(T_ev,T_co)), NOT on superheat - confirmed below. dT_sh is then
-    set by realistic technical limits: a dry-suction minimum (no liquid into the
-    compressor) below, and the discharge temperature above.
+  * dT_sc: COP_inner is monotone increasing for every refrigerant, so the
+    optimum is the upper bound (dT_sc,max = T_co - T_amb, the condenser
+    approach). The map deliberately sits below that bound (config.
+    DELTA_T_SUBCOOL_K = 5 K, about half of it), leaving a physical cold-end
+    pinch rather than letting the liquid approach T_amb with zero margin.
+  * dT_sh: COP_inner is nearly flat and refrigerant-dependent in sign, so
+    there's no common optimum (eta_is depends only on pressure ratio, not
+    superheat -- confirmed below). dT_sh is instead set by realistic
+    technical limits: a dry-suction minimum below, discharge temperature above.
 
-Runnable directly (path self-bootstraps):  python3 analysis/superheat_subcool_sweep.py
-Writes a 2-panel figure to  figures/superheat_subcool_sweep.png .
+Runnable directly (path self-bootstraps): python3 analysis/superheat_subcool_sweep.py
+Writes a 2-panel figure to figures/superheat_subcool_sweep.png.
 """
 import os, sys
 # Make runnable from any cwd, no PYTHONPATH needed (same pattern as sensitivity.py):

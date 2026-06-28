@@ -90,23 +90,12 @@ def ac_fan_flow_m3s(q_ac_max_kw, dt_air_k=None):
 
 
 def ac_fan_flow_from_map(cmap, t_room_hi_C=None):
-    """Per-combo AC recirculation flow, DERIVED from THIS map's capacity (it is not
-    a config constant). Size the fan to the largest Q_AC the compressor delivers
-    over the region the room actually occupies while the AC runs, so the coil-outlet
-    air keeps its >= AIR pinch above T_ev (T_room - T_AC <= EVAP - AIR) at every
-    on-step. Capacity ~ bore^2, so this is bore-specific by construction -- which is
-    exactly why one number in config cannot be right for all three bores.
-
-    Operating window T_room in [T_OFF, t_room_hi]; t_room_hi defaults to
-    T_ROOM_MAX_DESIGN_C = the worst control OVERSHOOT the fan must serve (~35 degC),
-    NOT the band top: the on/off controller runs the room well above the band (T_max
-    ~34.8 in the four-day sim), and the fan must hold its coil pinch there too or the
-    coil floors mid-excursion (fan_under). Q_AC rises with T_room and toward cold
-    ambient (where the min-pressure-ratio clamp may cap it), so the max is taken over
-    the FULL ambient grid; nanmax is robust to the clamp. Sizing to this ceiling
-    inflates V_AC and pushes the largest bores against the acoustic cap / turndown
-    (check_ac_fan_feasible warns + clamps) -- a deliberate feasibility result.
-    Returns (V_AC_m3s, Q_AC_max_kW)."""
+    """Per-combo AC recirculation flow, derived from this map's own capacity
+    (not a config constant, since capacity ~ bore^2). Sized to the largest
+    Q_AC the compressor delivers over T_room in [T_OFF, t_room_hi] (defaulting
+    to T_ROOM_MAX_DESIGN_C, the worst control overshoot, not the band top, so
+    the coil pinch holds there too) across the full ambient grid. Returns
+    (V_AC_m3s, Q_AC_max_kW)."""
     if t_room_hi_C is None:
         t_room_hi_C = config.T_ROOM_MAX_DESIGN_C
     Tr = np.asarray(cmap["T_room_grid"], dtype=float)
@@ -119,18 +108,12 @@ def ac_fan_flow_from_map(cmap, t_room_hi_C=None):
 
 
 def check_ac_fan_feasible(V_sized_m3s, max_turndown=10.0):
-    """Diagnose the single-ventilator coupling for the AC recirc duty (replaces the
-    old per-condition spot checks). Returns (V_used, turndown, clamped):
-
-      * V_used = the sized flow CAPPED at the Beaufort-5 acoustic limit -- you
-        physically cannot push more than that through the supply grille. If the cap
-        binds, the coil floors on the hottest on-steps and the sim's fan_under
-        counter records it (graceful degradation, a Task-3 result, not a crash).
-      * turndown = V_used / VENT_FLOW_DESIGN -- the span one ventilator must cover.
-
-    WARNS (never raises) so the Task-3 sweep keeps every candidate, when
-        (a) the acoustic cap clamps the flow, or
-        (b) the vent->AC turndown exceeds a typical single VFD's ~max_turndown:1."""
+    """Diagnose the single-ventilator coupling for the AC recirc duty. Returns
+    (V_used, turndown, clamped): V_used is the sized flow capped at the
+    Beaufort-5 acoustic limit (if it binds, the coil floors on the hottest
+    on-steps -- recorded by fan_under, not a crash); turndown is V_used /
+    VENT_FLOW_DESIGN. Warns (never raises), so the Task-3 sweep keeps every
+    candidate, if the cap clamps or the turndown exceeds a typical VFD's range."""
     vmax = v_max_acoustic_m3s()
     V_used = min(V_sized_m3s, vmax)
     clamped = V_sized_m3s > vmax + 1e-9
@@ -147,13 +130,11 @@ def check_ac_fan_feasible(V_sized_m3s, max_turndown=10.0):
 
 
 def freecool_dt_for_ac_flow(cmap, q_peak_kw):
-    """One-flow-vs-two-flow ventilation diagnostic. If the SINGLE ventilator ran
-    free cooling at the AC RECIRC flow (V_vent = V_AC) instead of the gentle design
-    flow, the room-ambient dT for free cooling ALONE to carry the peak load:
-        dT = q_peak / (rho * cp * V_AC).
-    Returns (Q_AC_max_kW, V_AC_m3s, dT_K). COVERAGE dT only -- the same high flow
-    OVERSHOOTS the low band at any larger dT (one ~5-min step, tau ~ M_air/(rho*
-    V_AC) ~ 1 timestep), which is exactly why VENT_FLOW_DESIGN_M3S stays gentle."""
+    """One-flow-vs-two-flow diagnostic: if free cooling ran at the AC recirc
+    flow instead of the gentle design flow, the room-ambient dT needed to
+    carry the peak load alone. Coverage only -- that same high flow overshoots
+    the low band at any larger dT (tau ~ 1 timestep), which is why
+    VENT_FLOW_DESIGN_M3S stays gentle instead. Returns (Q_AC_max_kW, V_AC_m3s, dT_K)."""
     v_ac, q_max = ac_fan_flow_from_map(cmap)
     dt = q_peak_kw / (config.AIR_DENSITY_KG_M3 * config.CP_AIR_KJ_KGK * v_ac)
     return q_max, v_ac, dt
